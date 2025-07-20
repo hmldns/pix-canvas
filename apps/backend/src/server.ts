@@ -3,10 +3,14 @@ import app from './app';
 import config from './config';
 import { connectToDatabase } from './services/database.service';
 import { initializeWebSocketServer } from './ws/WebSocketService';
+import { initializeSentry } from './config/sentry';
 
 async function startServer() {
   try {
     console.log('🚀 Starting Infinite Pixel Canvas Backend Server...');
+    
+    // Initialize Sentry error tracking
+    initializeSentry();
     
     // Connect to database
     await connectToDatabase();

@@ -7,6 +7,7 @@ import {
   KeepalivePingMessage,
   PixelUpdateData,
 } from '@libs/common-types';
+import { captureException, addBreadcrumb } from '../config/sentry';
 
 export interface WebSocketConfig {
   url: string;
@@ -127,6 +128,13 @@ export class WebSocketService {
       return true;
     } catch (error) {
       console.error('❌ Failed to send message:', error);
+      captureException(error as Error, {
+        websocket_send: {
+          messageType: message.type,
+          url: this.config.url,
+          status: this.status
+        }
+      });
       return false;
     }
   }
@@ -177,6 +185,10 @@ export class WebSocketService {
 
     this.ws.onopen = () => {
       console.log('✅ WebSocket connected');
+      addBreadcrumb('WebSocket connected', 'websocket', {
+        url: this.config.url,
+        attempt: this.reconnectAttempt
+      });
       this.setStatus(ConnectionStatus.CONNECTED);
       this.reconnectAttempt = 0;
       this.startHeartbeat();
@@ -199,6 +211,13 @@ export class WebSocketService {
 
     this.ws.onerror = (error) => {
       console.error('❌ WebSocket error:', error);
+      captureException(new Error('WebSocket connection error'), {
+        websocket: {
+          url: this.config.url,
+          status: this.status,
+          reconnectAttempt: this.reconnectAttempt
+        }
+      });
       this.setStatus(ConnectionStatus.ERROR);
       this.handlers.onError?.(error);
     };

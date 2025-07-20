@@ -12,6 +12,7 @@ import {
   WebSocketMessage 
 } from '@libs/common-types';
 import { BroadcastService, initializeBroadcastService, getBroadcastService } from './broadcast';
+import { captureException, addBreadcrumb, setUserContext } from '../config/sentry';
 
 interface ExtendedWebSocket extends WebSocket {
   userId?: string;
@@ -52,6 +53,7 @@ export class WebSocketService {
 
     this.wss.on('error', (error) => {
       console.error('❌ WebSocket server error:', error);
+      captureException(error, { context: 'websocket_server' });
     });
   }
 
@@ -69,6 +71,11 @@ export class WebSocketService {
     this.broadcastService.addClient(clientId, socket);
 
     console.log(`🔗 New WebSocket connection: ${clientId} (${this.clients.size} total clients)`);
+    addBreadcrumb(
+      `New WebSocket connection: ${clientId}`,
+      'websocket',
+      { clientId, totalClients: this.clients.size }
+    );
 
     // Handle incoming messages
     socket.on('message', async (data: Buffer) => {
@@ -76,6 +83,11 @@ export class WebSocketService {
         await this.handleMessage(clientId, data);
       } catch (error) {
         console.error(`❌ Error handling message from ${clientId}:`, error);
+        captureException(error as Error, { 
+          context: 'websocket_message_handling',
+          clientId,
+          messageSize: data.length 
+        });
         this.sendErrorMessage(socket, 'Invalid message format');
       }
     });
@@ -93,6 +105,10 @@ export class WebSocketService {
     // Handle connection errors
     socket.on('error', (error) => {
       console.error(`❌ WebSocket client error for ${clientId}:`, error);
+      captureException(error, { 
+        context: 'websocket_client_error',
+        clientId 
+      });
       this.handleDisconnection(clientId, 1006, Buffer.from('Connection error'));
     });
   }
@@ -153,6 +169,11 @@ export class WebSocketService {
       }
 
       console.log(`🎨 Processing DRAW_PIXEL from ${clientId}: (${x},${y}) ${color}`);
+      addBreadcrumb(
+        `Pixel drawn: (${x},${y}) ${color}`,
+        'pixel',
+        { clientId, x, y, color }
+      );
 
       // Create and save pixel to database
       const pixel = new Pixel({
@@ -177,6 +198,11 @@ export class WebSocketService {
 
     } catch (error) {
       console.error(`❌ Error processing DRAW_PIXEL from ${clientId}:`, error);
+      captureException(error as Error, { 
+        context: 'pixel_processing',
+        clientId,
+        pixelData: { x, y, color }
+      });
       this.sendErrorMessage(client.socket, 'Failed to save pixel');
     }
   }

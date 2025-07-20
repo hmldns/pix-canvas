@@ -1,25 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import * as Sentry from '@sentry/react';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { UserProvider } from './contexts/UserContext';
 import { ColorProvider } from './contexts/ColorContext';
+import { initializeSentry } from './config/sentry';
 import './index.css';
 
-// Initialize Sentry if DSN is provided
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN_FRONTEND;
-if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    environment: import.meta.env.MODE,
-    integrations: [
-      new Sentry.BrowserTracing(),
-    ],
-    tracesSampleRate: 1.0,
-  });
-}
+// Initialize Sentry error tracking
+initializeSentry();
 
 // Hide loading screen
 const loadingElement = document.getElementById('loading');

@@ -6,6 +6,7 @@ import ConnectionStatusWidget from '@components/widgets/ConnectionStatusWidget';
 import ColorPaletteWidget from '@components/widgets/ColorPaletteWidget';
 import ThemeToggleWidget from '@components/widgets/ThemeToggleWidget';
 import VolumeControlWidget from '@components/widgets/VolumeControlWidget';
+import DebugPanel from '@components/widgets/DebugPanel';
 
 const App: React.FC = () => {
   const canvasRef = useRef<any>(null);
@@ -37,6 +38,13 @@ const App: React.FC = () => {
       <UserListWidget />
       <ChatWidget />
       <ColorPaletteWidget />
+      
+      {/* Debug Panel - only visible in development or when enabled */}
+      <DebugPanel
+        effectsManager={canvasRef.current?.getEffectsManager?.()}
+        soundManager={canvasRef.current?.getSoundManager?.()}
+        webSocketService={canvasRef.current?.getWebSocketService?.()}
+      />
       
     </div>
   );
