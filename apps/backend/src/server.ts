@@ -2,7 +2,7 @@ import http from 'http';
 import app from './app';
 import config from './config';
 import { connectToDatabase } from './services/database.service';
-// import { initializeWebSocketServer } from './ws/WebSocketService'; // Will be implemented later
+import { initializeWebSocketServer } from './ws/WebSocketService';
 
 async function startServer() {
   try {
@@ -15,9 +15,9 @@ async function startServer() {
     // Create HTTP server
     const server = http.createServer(app);
     
-    // Initialize WebSocket server (will be implemented later)
-    // initializeWebSocketServer(server);
-    // console.log('✅ WebSocket server initialized');
+    // Initialize WebSocket server
+    initializeWebSocketServer(server);
+    console.log('✅ WebSocket server initialized');
     
     // Start listening
     server.listen(config.port, () => {
