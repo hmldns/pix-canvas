@@ -162,6 +162,12 @@ export class InputController {
       canvasContainer.x = mousePos.x - worldPosBeforeZoom.x * newScale;
       canvasContainer.y = mousePos.y - worldPosBeforeZoom.y * newScale;
 
+      // Update grid for new scale
+      const gridContainer = canvasContainer.getChildByName('grid-container') as PIXI.Container;
+      if (gridContainer) {
+        this.renderer.updateGrid(gridContainer, newScale);
+      }
+
       // Notify callbacks
       this.callbacks.onViewportChange?.(
         newScale,
@@ -327,9 +333,11 @@ export class InputController {
     const defaultScale = 30;
     canvasContainer.scale.set(defaultScale);
     
-    // Center the view at coordinate (0,0)
-    canvasContainer.x = app.screen.width / 2;
-    canvasContainer.y = app.screen.height / 2;
+    // Center the view at the center of valid canvas (2500, 2500)
+    const canvasCenterX = 2500;
+    const canvasCenterY = 2500;
+    canvasContainer.x = app.screen.width / 2 - canvasCenterX * defaultScale;
+    canvasContainer.y = app.screen.height / 2 - canvasCenterY * defaultScale;
     
     console.log('🎯 View reset to center with default zoom');
     
