@@ -1,0 +1,22 @@
+{
+  "name": "@libs/utils",
+  "version": "1.0.0",
+  "description": "Shared utility functions for the Infinite Pixel Canvas project",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "unique-names-generator": "^4.7.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}

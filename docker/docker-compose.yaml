@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # MongoDB database service
+  mongodb:
+    image: mongo:7
+    container_name: pix-canvas-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: pixcanvas
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - pixcanvas-network
+
+  # Backend service
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: pix-canvas-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongodb:27017/pixcanvas
+    depends_on:
+      - mongodb
+    networks:
+      - pixcanvas-network
+
+#  # Signaling service for WebRTC
+#  signaling:
+#    build:
+#      context: ..
+#      dockerfile: docker/signaling.Dockerfile
+#    container_name: pix-canvas-signaling
+#    restart: unless-stopped
+#    environment:
+#      - NODE_ENV=production
+#      - PORT=3002
+#    networks:
+#      - pixcanvas-network
+
+  # Frontend service
+#  frontend:
+#    build:
+#      context: ..
+#      dockerfile: docker/frontend.Dockerfile
+#    container_name: pix-canvas-frontend
+#    restart: unless-stopped
+#    environment:
+#      - NODE_ENV=production
+#    networks:
+#      - pixcanvas-network
+
+#  # Caddy reverse proxy
+#  caddy:
+#    image: caddy:2
+#    container_name: pix-canvas-caddy
+#    restart: unless-stopped
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#    volumes:
+#      - ./Caddyfile:/etc/caddy/Caddyfile
+#      - caddy_data:/data
+#      - caddy_config:/config
+#    depends_on:
+#      - frontend
+#      - backend
+#      - signaling
+#    networks:
+#      - pixcanvas-network
+
+networks:
+  pixcanvas-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  caddy_data:
+  caddy_config:

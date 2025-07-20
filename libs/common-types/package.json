@@ -1,0 +1,19 @@
+{
+  "name": "@libs/common-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript type definitions for the Infinite Pixel Canvas project",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}

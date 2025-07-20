@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@common-types/*": ["./libs/common-types/src/*"],
+      "@utils/*": ["./libs/utils/src/*"]
+    }
+  },
+  "include": [
+    "apps/**/*",
+    "libs/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

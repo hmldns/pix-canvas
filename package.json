@@ -1,0 +1,21 @@
+{
+  "name": "infinite-pixel-canvas",
+  "version": "1.0.0",
+  "description": "A real-time collaborative pixel canvas",
+  "private": true,
+  "scripts": {
+    "build": "make build",
+    "dev": "make up",
+    "test": "make test-backend"
+  },
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

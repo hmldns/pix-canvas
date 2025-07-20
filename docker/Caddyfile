@@ -1,0 +1,27 @@
+localhost {
+    # Serve static frontend files
+    handle_path /* {
+        reverse_proxy frontend:80
+    }
+
+    # WebSocket connection to backend
+    handle /ws* {
+        reverse_proxy backend:3001
+    }
+
+    # REST API endpoints
+    handle /api/* {
+        reverse_proxy backend:3001
+    }
+
+    # WebRTC signaling service
+    handle /signal* {
+        reverse_proxy signaling:3002
+    }
+
+    # Enable logging
+    log {
+        output stdout
+        format json
+    }
+}

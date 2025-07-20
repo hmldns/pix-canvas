@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__nautex__nautex_next_scope",
+      "mcp__nautex__nautex_update_tasks",
+      "Bash(mkdir:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run dev:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "nautex"
+  ]
+}
