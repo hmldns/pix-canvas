@@ -30,13 +30,13 @@ const App: React.FC = () => {
       {/* Floating UI Widgets */}
       <ThemeToggleWidget />
       <ConnectionStatusWidget />
-      <UserListWidget />
-      <ChatWidget />
-      <ColorPaletteWidget />
       <VolumeControlWidget
         onVolumeChange={handleVolumeChange}
         onToggleEnabled={handleSoundToggle}
       />
+      <UserListWidget />
+      <ChatWidget />
+      <ColorPaletteWidget />
       
     </div>
   );

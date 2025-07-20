@@ -113,13 +113,14 @@ const VolumeControlWidget: React.FC<VolumeControlWidgetProps> = ({
   );
 
   return (
-    <BaseWidget 
-      title="Audio" 
-      position="top-right"
-      defaultCollapsed={true}
-    >
-      {content}
-    </BaseWidget>
+    <div className="absolute top-4 left-72 z-10">
+      <BaseWidget 
+        title="Audio" 
+        defaultCollapsed={true}
+      >
+        {content}
+      </BaseWidget>
+    </div>
   );
 };
 

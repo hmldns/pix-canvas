@@ -168,6 +168,7 @@ const ConnectionStatusWidget: React.FC = () => {
     return `${seconds} seconds ago`;
   };
 
+
   const statusInfo = getStatusInfo();
 
   return (

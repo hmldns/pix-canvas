@@ -47,12 +47,12 @@ export class PixelEffectManager {
   constructor(parentContainer: PIXI.Container, config: Partial<PixelEffectConfig> = {}) {
     this.parentContainer = parentContainer;
     this.config = {
-      particleCount: 16, // More particles for denser effect
+      particleCount: 120, // 5x more particles (24 * 5 = 120)
       duration: 500, // 0.5 seconds as specified
-      particleSize: 0.08, // Smaller particles
-      particleSpeed: 1.2, // Slower speed for tighter spread
-      gravity: 0.1, // Less gravity for tighter effect
-      fadeSpeed: 0.002,
+      particleSize: 0.6, // 2x larger particles (0.3 * 2 = 0.6)
+      particleSpeed: 3.0, // Higher speed for visibility
+      gravity: 0.05, // Very light gravity for floating effect
+      fadeSpeed: 0.001, // Slower fade for debugging
       ...config
     };
 
@@ -66,6 +66,8 @@ export class PixelEffectManager {
    * Create a particle effect at the specified pixel location
    */
   public createPixelEffect(x: number, y: number, color: string, isOwnPixel = true): void {
+    console.log(`🎆 Creating pixel effect at (${x}, ${y}) with color ${color}, isOwnPixel: ${isOwnPixel}`);
+    
     const effect: PixelEffect = {
       particles: [],
       container: new PIXI.Container(),
@@ -83,7 +85,7 @@ export class PixelEffectManager {
     
     this.activeEffects.push(effect);
     
-    console.log(`✨ Created pixel effect at (${x}, ${y}) with color ${color}`);
+    console.log(`✨ Created pixel effect with ${effect.particles.length} particles at (${x}, ${y})`);
   }
 
   /**
@@ -181,21 +183,27 @@ export class PixelEffectManager {
     const colorValue = parseInt(color.replace('#', ''), 16);
     
     // Adjust particle count and intensity based on whether it's own pixel
-    const particleCount = isOwnPixel ? this.config.particleCount : Math.floor(this.config.particleCount * 0.6);
-    const particleSize = isOwnPixel ? this.config.particleSize : this.config.particleSize * 0.7;
-    const speedMultiplier = isOwnPixel ? 1.0 : 0.8;
+    const particleCount = isOwnPixel ? this.config.particleCount : Math.floor(this.config.particleCount * 0.5);
+    const particleSize = isOwnPixel ? this.config.particleSize : this.config.particleSize * 0.8;
+    const speedMultiplier = isOwnPixel ? 1.0 : 0.7;
+    
+    console.log(`🎨 Creating ${particleCount} particles with size ${particleSize}, color: ${color} (${colorValue})`);
     
     for (let i = 0; i < particleCount; i++) {
       const particle = this.acquireParticle();
       
-      // Draw the particle (small square)
+      // Draw the particle (circle)
       particle.beginFill(colorValue, 1);
-      particle.drawRect(-particleSize / 2, -particleSize / 2, particleSize, particleSize);
+      particle.drawCircle(0, 0, particleSize / 2);
       particle.endFill();
+      
+      // Set initial position to center of effect
+      particle.position.set(0, 0);
 
-      // Random velocity direction with tighter spread
-      const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.3;
-      const speed = this.config.particleSpeed * speedMultiplier * (0.7 + Math.random() * 0.3);
+      // Perfect radial distribution with slight randomness
+      const baseAngle = (Math.PI * 2 * i) / particleCount;
+      const angle = baseAngle + (Math.random() - 0.5) * 0.2; // Small random offset for natural look
+      const speed = this.config.particleSpeed * speedMultiplier * (0.8 + Math.random() * 0.4); // More speed variation
       
       const particleData: Particle = {
         sprite: particle,
@@ -203,11 +211,18 @@ export class PixelEffectManager {
         velocityY: Math.sin(angle) * speed,
         life: 1,
         maxLife: 1,
-        baseAlpha: 0.8 + Math.random() * 0.2
+        baseAlpha: 1.0 // Full alpha for debugging
       };
+
+      // Ensure particle is visible
+      particle.alpha = 1.0;
+      particle.visible = true;
+      particle.scale.set(1.0);
 
       effect.particles.push(particleData);
       effect.container.addChild(particle);
+      
+      console.log(`  🔸 Created particle ${i}: pos(${particle.x}, ${particle.y}), vel(${particleData.velocityX.toFixed(2)}, ${particleData.velocityY.toFixed(2)}), alpha: ${particle.alpha}`);
     }
   }
 
@@ -218,8 +233,12 @@ export class PixelEffectManager {
     const dt = Math.min(deltaTime, 50); // Cap delta time to prevent large jumps
     
     for (const particle of effect.particles) {
-      // Apply gravity
+      // Apply very light gravity for floating effect
       particle.velocityY += this.config.gravity * dt * 0.016; // Normalize to ~16ms frame time
+      
+      // Add slight air resistance for more natural motion
+      particle.velocityX *= 0.998;
+      particle.velocityY *= 0.998;
       
       // Update position
       particle.sprite.x += particle.velocityX * dt * 0.016;
