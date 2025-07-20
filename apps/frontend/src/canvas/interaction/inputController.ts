@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { CanvasRenderer } from '../rendering/CanvasRenderer';
 import { WebSocketService } from '../../services/websocket';
+import { webRTCService } from '../../services/webrtc';
 import { isValidCanvasCoordinate, isValidHexColor } from '@libs/utils';
 
 export interface InputControllerConfig {
@@ -9,6 +10,7 @@ export interface InputControllerConfig {
   enableDrawing: boolean;
   enablePanning: boolean;
   enableZooming: boolean;
+  enableCursorSharing: boolean;
 }
 
 export interface InputControllerCallbacks {
@@ -47,6 +49,7 @@ export class InputController {
       enableDrawing: true,
       enablePanning: true,
       enableZooming: true,
+      enableCursorSharing: true,
       ...config,
     };
     
@@ -110,6 +113,11 @@ export class InputController {
 
     if (this.isPanning && this.config.enablePanning) {
       this.updatePanning(globalPos.x, globalPos.y);
+    }
+
+    // Share cursor position via WebRTC if enabled
+    if (this.config.enableCursorSharing) {
+      this.shareCursorPosition(globalPos.x, globalPos.y);
     }
   }
 
@@ -307,6 +315,31 @@ export class InputController {
     const gridY = Math.floor(localPoint.y / this.config.gridSize);
 
     return { x: gridX, y: gridY };
+  }
+
+  /**
+   * Share cursor position with other peers via WebRTC
+   */
+  private shareCursorPosition(screenX: number, screenY: number): void {
+    try {
+      // Convert screen coordinates to canvas coordinates for sharing
+      const canvasCoords = this.screenToCanvasCoordinates(screenX, screenY);
+      
+      if (!canvasCoords) {
+        return; // Invalid coordinates, skip sharing
+      }
+
+      // Only share if coordinates are within valid canvas bounds
+      if (!isValidCanvasCoordinate(canvasCoords.x, canvasCoords.y)) {
+        return; // Outside valid canvas area, skip sharing
+      }
+
+      // Send cursor position via WebRTC (throttled automatically by data channel)
+      webRTCService.sendCursorUpdate(canvasCoords.x, canvasCoords.y);
+
+    } catch (error) {
+      console.error('❌ Error sharing cursor position:', error);
+    }
   }
 
   /**

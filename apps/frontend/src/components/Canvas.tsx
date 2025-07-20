@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { CanvasRenderer } from '@canvas/rendering/CanvasRenderer';
+import { CursorRenderer } from '@canvas/rendering/CursorRenderer';
 import { StateSynchronizer } from '@canvas/state/stateSync';
 import { InputController } from '@canvas/interaction/inputController';
 import { apiService } from '@services/api';
 import { webSocketService, ConnectionStatus } from '@services/websocket';
-import { PixelUpdateData } from '@libs/common-types';
+import { webRTCService } from '@services/webrtc';
+import { PixelUpdateData, CursorUpdateData, ChatMessageData } from '@libs/common-types';
 import { useTheme } from '@contexts/ThemeContext';
 
 interface CanvasProps {
@@ -17,6 +19,7 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const stateSyncRef = useRef<StateSynchronizer | null>(null);
   const inputControllerRef = useRef<InputController | null>(null);
+  const cursorRendererRef = useRef<CursorRenderer | null>(null);
 
   // State for canvas data and connection
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +27,8 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   const [selectedColor, setSelectedColor] = useState('#FF0000');
   const [pixelCount, setPixelCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [webRTCConnected, setWebRTCConnected] = useState(false);
+  const [connectedPeers, setConnectedPeers] = useState<string[]>([]);
 
   /**
    * Initialize user session and fetch initial canvas data
@@ -146,21 +151,91 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
     );
     inputControllerRef.current = inputController;
 
+    // Initialize cursor renderer
+    const cursorRenderer = new CursorRenderer(renderer.canvasContainer!);
+    cursorRendererRef.current = cursorRenderer;
+
     console.log('✅ Canvas systems initialized');
 
     // Cleanup function
     return () => {
       inputControllerRef.current?.destroy();
+      cursorRendererRef.current?.destroy();
       stateSyncRef.current?.destroy();
       rendererRef.current?.destroy();
       
       rendererRef.current = null;
       stateSyncRef.current = null;
       inputControllerRef.current = null;
+      cursorRendererRef.current = null;
       
       console.log('🎨 Canvas systems destroyed');
     };
   }, []); // Empty dependency array - only initialize once
+
+  /**
+   * Handle WebRTC events
+   */
+  const handleCursorUpdate = useCallback((data: CursorUpdateData) => {
+    if (cursorRendererRef.current) {
+      cursorRendererRef.current.updateCursor(data);
+    }
+  }, []);
+
+  const handleChatMessage = useCallback((data: ChatMessageData) => {
+    console.log('💬 Chat message received:', data);
+    // TODO: Handle chat messages when chat widget is implemented
+  }, []);
+
+  const handlePeerConnected = useCallback((peerId: string) => {
+    console.log('👥 Peer connected:', peerId);
+    setConnectedPeers(prev => [...prev.filter(id => id !== peerId), peerId]);
+  }, []);
+
+  const handlePeerDisconnected = useCallback((peerId: string) => {
+    console.log('👋 Peer disconnected:', peerId);
+    setConnectedPeers(prev => prev.filter(id => id !== peerId));
+    if (cursorRendererRef.current) {
+      cursorRendererRef.current.removeCursor(peerId);
+    }
+  }, []);
+
+  /**
+   * Initialize WebRTC connection
+   */
+  const initializeWebRTC = useCallback(async () => {
+    try {
+      console.log('🔌 Initializing WebRTC connection...');
+      
+      // Generate a simple user ID for this session
+      const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const nickname = `User${Math.floor(Math.random() * 1000)}`;
+      
+      await webRTCService.connect(
+        {
+          signalingUrl: 'http://localhost:3003',
+          roomId: 'canvas-room',
+          userId,
+          nickname
+        },
+        {
+          onPeerConnected: handlePeerConnected,
+          onPeerDisconnected: handlePeerDisconnected,
+          onCursorUpdate: handleCursorUpdate,
+          onChatMessage: handleChatMessage,
+          onConnectionStateChange: (state) => {
+            console.log('🔗 WebRTC connection state:', state);
+            setWebRTCConnected(state === 'connected');
+          }
+        }
+      );
+      
+      console.log('✅ WebRTC connection established');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize WebRTC:', error);
+    }
+  }, [handleCursorUpdate, handleChatMessage, handlePeerConnected, handlePeerDisconnected]);
 
   /**
    * Initialize canvas data and WebSocket connection
@@ -172,15 +247,44 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
       
       // Connect WebSocket
       webSocketService.connect();
+      
+      // Initialize WebRTC after a short delay to ensure canvas is ready
+      setTimeout(() => {
+        initializeWebRTC();
+      }, 1000);
     };
 
     initialize();
 
-    // Cleanup WebSocket on unmount
+    // Cleanup WebSocket and WebRTC on unmount
     return () => {
       webSocketService.disconnect();
+      webRTCService.disconnect();
     };
-  }, [initializeCanvas]);
+  }, [initializeCanvas, initializeWebRTC]);
+
+  /**
+   * Cursor renderer update loop
+   */
+  useEffect(() => {
+    let animationFrame: number;
+
+    const updateCursors = () => {
+      if (cursorRendererRef.current) {
+        cursorRendererRef.current.update();
+      }
+      animationFrame = requestAnimationFrame(updateCursors);
+    };
+
+    // Start the update loop
+    animationFrame = requestAnimationFrame(updateCursors);
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, []);
 
   /**
    * Update canvas background when theme changes
@@ -256,6 +360,11 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
             <span className="capitalize">{connectionStatus}</span>
           </div>
           <div>Pixels: {pixelCount.toLocaleString()}</div>
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${webRTCConnected ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+            <span>WebRTC: {webRTCConnected ? 'Connected' : 'Disconnected'}</span>
+          </div>
+          <div>Peers: {connectedPeers.length}</div>
           <div className="flex items-center space-x-2">
             <span>Color:</span>
             <div 

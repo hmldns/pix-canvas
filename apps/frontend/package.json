@@ -12,12 +12,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@libs/common-types": "*",
+    "@libs/utils": "*",
+    "@sentry/react": "^7.77.0",
+    "pixi.js": "^7.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "pixi.js": "^7.3.2",
-    "@sentry/react": "^7.77.0",
-    "@libs/common-types": "*",
-    "@libs/utils": "*"
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",
