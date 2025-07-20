@@ -11,6 +11,7 @@ import {
   KeepalivePingMessage,
   WebSocketMessage 
 } from '@libs/common-types';
+import { BroadcastService, initializeBroadcastService, getBroadcastService } from './broadcast';
 
 interface ExtendedWebSocket extends WebSocket {
   userId?: string;
@@ -27,6 +28,7 @@ export class WebSocketService {
   private wss: WebSocketServer;
   private clients: Map<string, ConnectedClient> = new Map();
   private pingInterval: NodeJS.Timer | null = null;
+  private broadcastService: BroadcastService;
 
   constructor(server: Server) {
     this.wss = new WebSocketServer({ 
@@ -34,10 +36,13 @@ export class WebSocketService {
       path: '/ws'
     });
 
+    // Initialize broadcast service
+    this.broadcastService = initializeBroadcastService();
+
     this.setupWebSocketServer();
     this.startPingInterval();
     
-    console.log('✅ WebSocket server initialized on /ws');
+    console.log('✅ WebSocket server initialized on /ws with rate-limited broadcasting');
   }
 
   private setupWebSocketServer(): void {
@@ -59,6 +64,9 @@ export class WebSocketService {
       socket,
       connectedAt: new Date(),
     });
+
+    // Add client to broadcast service
+    this.broadcastService.addClient(clientId, socket);
 
     console.log(`🔗 New WebSocket connection: ${clientId} (${this.clients.size} total clients)`);
 
@@ -158,13 +166,14 @@ export class WebSocketService {
       await pixel.save();
       console.log(`✅ Pixel saved to database: (${x},${y}) ${color} by ${userId}`);
 
-      // Broadcast update to all clients (including sender)
-      this.broadcastPixelUpdate([{
+      // Queue pixel update for batched broadcasting
+      this.broadcastService.queuePixelUpdate({
         x: pixel.x,
         y: pixel.y,
         color: pixel.color,
         userId: pixel.userId,
-      }]);
+        timestamp: pixel.timestamp,
+      });
 
     } catch (error) {
       console.error(`❌ Error processing DRAW_PIXEL from ${clientId}:`, error);
@@ -188,30 +197,16 @@ export class WebSocketService {
     return 'anonymous-user';
   }
 
-  private broadcastPixelUpdate(pixels: Array<{ x: number; y: number; color: string; userId: string }>): void {
-    const updateMessage: PixelUpdateMessage = {
-      type: 'PIXEL_UPDATE',
-      payload: { pixels },
-    };
-
-    const messageString = JSON.stringify(updateMessage);
-    let sentCount = 0;
-
-    this.clients.forEach((client, clientId) => {
-      if (client.socket.readyState === WebSocket.OPEN) {
-        client.socket.send(messageString);
-        sentCount++;
-      }
-    });
-
-    console.log(`📡 Broadcasted PIXEL_UPDATE to ${sentCount} clients`);
-  }
 
   private handleDisconnection(clientId: string, code: number, reason: Buffer): void {
     const client = this.clients.get(clientId);
     if (client) {
       const duration = Date.now() - client.connectedAt.getTime();
       console.log(`🔌 Client ${clientId} disconnected (code: ${code}, duration: ${duration}ms, remaining: ${this.clients.size - 1})`);
+      
+      // Remove from broadcast service
+      this.broadcastService.removeClient(clientId);
+      
       this.clients.delete(clientId);
     }
   }
@@ -268,11 +263,33 @@ export class WebSocketService {
     return result;
   }
 
+  /**
+   * Get broadcast service statistics
+   */
+  public getBroadcastStats(): {
+    queueSize: number;
+    clientCount: number;
+    isRunning: boolean;
+    intervalMs: number;
+  } {
+    return this.broadcastService.getStats();
+  }
+
+  /**
+   * Force flush the broadcast queue (for testing)
+   */
+  public flushBroadcastQueue(): void {
+    this.broadcastService.flushQueue();
+  }
+
   public close(): void {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
     }
+
+    // Stop broadcast service
+    this.broadcastService.stop();
 
     this.clients.forEach((client) => {
       client.socket.close();
