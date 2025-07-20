@@ -27,10 +27,10 @@ export class CursorRenderer {
 
   constructor(parentContainer: PIXI.Container, config: Partial<CursorRendererConfig> = {}) {
     this.config = {
-      maxCursorAge: 5000, // 5 seconds
+      maxCursorAge: 10000, // 10 seconds (longer persistence)
       cursorSize: 1.0, // 1x1 pixel frame
       labelOffset: 0.8, // Closer to pixel frame
-      fadeOutDuration: 1000, // 1 second fade
+      fadeOutDuration: 2000, // 2 second fade (slower fade)
       ...config
     };
 
@@ -95,7 +95,7 @@ export class CursorRenderer {
     cursor.container.visible = true;
     cursor.container.alpha = 1;
 
-    console.log(`🖱️ Updated cursor for ${nickname} at (${x}, ${y})`);
+    console.log(`🖱️ Updated cursor for ${nickname} at (${x}, ${y}), total cursors: ${this.cursors.size}`);
   }
 
   /**

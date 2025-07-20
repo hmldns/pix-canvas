@@ -34,6 +34,10 @@ export class InputController {
   private isDrawingMode = false;
   private lastDrawnPixel = { x: -1, y: -1 };
 
+  // Cursor sharing state
+  private lastCursorPosition = { x: 0, y: 0 };
+  private hasValidCursorPosition = false;
+
   constructor(
     renderer: CanvasRenderer,
     webSocketService: WebSocketService,
@@ -80,6 +84,12 @@ export class InputController {
     // Keyboard events for mode switching
     window.addEventListener('keydown', this.handleKeyDown.bind(this));
     window.addEventListener('keyup', this.handleKeyUp.bind(this));
+
+    // Window focus/blur events for cursor sharing
+    if (this.config.enableCursorSharing) {
+      window.addEventListener('focus', this.handleWindowFocus.bind(this));
+      window.addEventListener('blur', this.handleWindowBlur.bind(this));
+    }
 
     // Prevent context menu on right click
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -334,6 +344,10 @@ export class InputController {
         return; // Outside valid canvas area, skip sharing
       }
 
+      // Store last valid cursor position
+      this.lastCursorPosition = { x: canvasCoords.x, y: canvasCoords.y };
+      this.hasValidCursorPosition = true;
+
       // Send cursor position via WebRTC (throttled automatically by data channel)
       webRTCService.sendCursorUpdate(canvasCoords.x, canvasCoords.y);
 
@@ -428,6 +442,26 @@ export class InputController {
   }
 
   /**
+   * Handle window focus event - re-send last cursor position
+   */
+  private handleWindowFocus(): void {
+    if (this.hasValidCursorPosition && this.config.enableCursorSharing) {
+      // Re-send the last known cursor position when window regains focus
+      webRTCService.sendCursorUpdate(this.lastCursorPosition.x, this.lastCursorPosition.y);
+      console.log('🔄 Re-sent cursor position on window focus:', this.lastCursorPosition);
+    }
+  }
+
+  /**
+   * Handle window blur event - cursors will naturally fade out on other clients
+   */
+  private handleWindowBlur(): void {
+    // When window loses focus, cursors will naturally fade out after maxCursorAge
+    // We don't need to explicitly send a "hide cursor" message
+    console.log('👁️ Window lost focus, cursor will fade on other clients');
+  }
+
+  /**
    * Destroy the input controller
    */
   public destroy(): void {
@@ -438,6 +472,12 @@ export class InputController {
     canvas.removeEventListener('contextmenu', (e) => e.preventDefault());
     window.removeEventListener('keydown', this.handleKeyDown.bind(this));
     window.removeEventListener('keyup', this.handleKeyUp.bind(this));
+    
+    // Remove window focus/blur listeners if cursor sharing was enabled
+    if (this.config.enableCursorSharing) {
+      window.removeEventListener('focus', this.handleWindowFocus.bind(this));
+      window.removeEventListener('blur', this.handleWindowBlur.bind(this));
+    }
 
     // Remove PixiJS event listeners
     this.renderer.stage.removeAllListeners();

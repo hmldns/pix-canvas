@@ -1,46 +1,88 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import BaseWidget from './BaseWidget';
+import { useChatContext } from '@contexts/ChatContext';
+import { ChatMessageData } from '@libs/common-types';
 
 interface ChatMessage {
   id: string;
-  username: string;
+  userId: string;
+  nickname: string;
   message: string;
-  timestamp: Date;
-  color: string;
+  timestamp: number;
+  isLocal?: boolean;
 }
 
 const ChatWidget: React.FC = () => {
-  const [messages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      username: 'PixelArtist',
-      message: 'Welcome to the infinite pixel canvas! 🎨',
-      timestamp: new Date(Date.now() - 120000),
-      color: '#FF6B6B'
-    },
-    {
-      id: '2', 
-      username: 'GridMaster',
-      message: 'Love the new grid system!',
-      timestamp: new Date(Date.now() - 60000),
-      color: '#4ECDC4'
-    }
-  ]);
-
+  const { messages: contextMessages, sendMessage } = useChatContext();
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Merge and sort all messages (local + context)
+  const allMessages = React.useMemo(() => {
+    const contextConverted: ChatMessage[] = contextMessages.map(msg => ({
+      id: `remote-${msg.userId}-${msg.timestamp}`,
+      userId: msg.userId,
+      nickname: msg.nickname,
+      message: msg.message,
+      timestamp: msg.timestamp,
+      isLocal: false
+    }));
+
+    const combined = [...localMessages, ...contextConverted];
+    
+    // Sort by timestamp to maintain chronological order
+    return combined.sort((a, b) => a.timestamp - b.timestamp);
+  }, [contextMessages, localMessages]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [allMessages]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (newMessage.trim()) {
-      // TODO: Implement actual message sending via WebSocket
-      console.log('Sending message:', newMessage);
+      // Send via context
+      sendMessage(newMessage);
+      
+      // Add to local messages immediately
+      const localMsg: ChatMessage = {
+        id: `local-${Date.now()}`,
+        userId: 'local',
+        nickname: 'You',
+        message: newMessage,
+        timestamp: Date.now(),
+        isLocal: true
+      };
+      
+      setLocalMessages(prev => [...prev, localMsg]);
       setNewMessage('');
+      console.log('💬 Sent chat message via widget:', newMessage);
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  const getUserColor = (userId: string, isLocal: boolean) => {
+    if (isLocal) return '#10B981'; // Green for local user
+    
+    // Generate consistent color based on userId
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const colors = ['#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899'];
+    return colors[Math.abs(hash) % colors.length];
+  };
+
 
   return (
     <BaseWidget 
@@ -51,14 +93,14 @@ const ChatWidget: React.FC = () => {
       <div className="flex flex-col h-64">
         {/* Messages List */}
         <div className="flex-1 overflow-y-auto space-y-2 mb-3">
-          {messages.map((msg) => (
+          {allMessages.map((msg) => (
             <div key={msg.id} className="text-sm">
               <div className="flex items-baseline space-x-2">
                 <span 
                   className="font-medium text-xs"
-                  style={{ color: msg.color }}
+                  style={{ color: getUserColor(msg.userId, msg.isLocal || false) }}
                 >
-                  {msg.username}
+                  {msg.nickname}
                 </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {formatTime(msg.timestamp)}
@@ -69,8 +111,9 @@ const ChatWidget: React.FC = () => {
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} />
           
-          {messages.length === 0 && (
+          {allMessages.length === 0 && (
             <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-8">
               No messages yet. Start a conversation!
             </div>

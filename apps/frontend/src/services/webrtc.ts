@@ -15,7 +15,8 @@ export interface WebRTCConfig {
 export interface PeerConnection {
   id: string;
   connection: RTCPeerConnection;
-  dataChannel?: RTCDataChannel;
+  cursorDataChannel?: RTCDataChannel; // Fast, unreliable for cursor movements
+  chatDataChannel?: RTCDataChannel;   // Reliable, ordered for chat messages
   remoteUserId?: string;
 }
 
@@ -124,7 +125,7 @@ export class WebRTCService {
       color: '#3B82F6' // Blue cursor color
     };
 
-    this.broadcastToDataChannel('cursor-update', cursorData);
+    this.broadcastToDataChannel('cursor-update', cursorData, 'cursor');
   }
 
   public sendChatMessage(message: string): void {
@@ -137,7 +138,7 @@ export class WebRTCService {
       timestamp: Date.now()
     };
 
-    this.broadcastToDataChannel('chat-message', chatData);
+    this.broadcastToDataChannel('chat-message', chatData, 'chat');
   }
 
   public getConnectedPeers(): string[] {
@@ -236,14 +237,23 @@ export class WebRTCService {
     this.setupPeerConnectionHandlers(peer);
 
     if (isOfferer) {
-      // Create data channel for communication
-      const dataChannel = connection.createDataChannel('communication', {
-        ordered: false, // Unordered for speed (cursor movements)
+      // Create cursor data channel (fast, unreliable for cursor movements)
+      const cursorDataChannel = connection.createDataChannel('cursor', {
+        ordered: false, // Unordered for speed
         maxRetransmits: 0 // Unreliable for speed
       });
       
-      peer.dataChannel = dataChannel;
-      this.setupDataChannelHandlers(dataChannel, peerId);
+      // Create chat data channel (reliable, ordered for chat messages)
+      const chatDataChannel = connection.createDataChannel('chat', {
+        ordered: true, // Ordered delivery
+        // maxRetransmits not set = reliable delivery
+      });
+      
+      peer.cursorDataChannel = cursorDataChannel;
+      peer.chatDataChannel = chatDataChannel;
+      
+      this.setupDataChannelHandlers(cursorDataChannel, peerId, 'cursor');
+      this.setupDataChannelHandlers(chatDataChannel, peerId, 'chat');
 
       // Create and send offer
       const offer = await connection.createOffer();
@@ -289,46 +299,53 @@ export class WebRTCService {
 
     connection.ondatachannel = (event) => {
       const dataChannel = event.channel;
-      peer.dataChannel = dataChannel;
-      this.setupDataChannelHandlers(dataChannel, peer.id);
+      const channelLabel = dataChannel.label;
+      
+      if (channelLabel === 'cursor') {
+        peer.cursorDataChannel = dataChannel;
+        this.setupDataChannelHandlers(dataChannel, peer.id, 'cursor');
+      } else if (channelLabel === 'chat') {
+        peer.chatDataChannel = dataChannel;
+        this.setupDataChannelHandlers(dataChannel, peer.id, 'chat');
+      } else {
+        console.warn(`⚠️ Unknown data channel label: ${channelLabel}`);
+      }
     };
   }
 
-  private setupDataChannelHandlers(dataChannel: RTCDataChannel, peerId: string): void {
+  private setupDataChannelHandlers(dataChannel: RTCDataChannel, peerId: string, channelType: 'cursor' | 'chat'): void {
     dataChannel.onopen = () => {
-      console.log(`📡 Data channel opened with peer ${peerId}`);
+      console.log(`📡 ${channelType} data channel opened with peer ${peerId}`);
     };
 
     dataChannel.onclose = () => {
-      console.log(`📡 Data channel closed with peer ${peerId}`);
+      console.log(`📡 ${channelType} data channel closed with peer ${peerId}`);
     };
 
     dataChannel.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        this.handleDataChannelMessage(data, peerId);
+        this.handleDataChannelMessage(data, peerId, channelType);
       } catch (error) {
-        console.error('❌ Failed to parse data channel message:', error);
+        console.error(`❌ Failed to parse ${channelType} data channel message:`, error);
       }
     };
 
     dataChannel.onerror = (error) => {
-      console.error(`❌ Data channel error with peer ${peerId}:`, error);
+      console.error(`❌ ${channelType} data channel error with peer ${peerId}:`, error);
     };
   }
 
-  private handleDataChannelMessage(data: any, peerId: string): void {
+  private handleDataChannelMessage(data: any, peerId: string, channelType: 'cursor' | 'chat'): void {
     const { type, payload } = data;
 
-    switch (type) {
-      case 'cursor-update':
-        this.eventHandlers.onCursorUpdate?.(payload as CursorUpdateData);
-        break;
-      case 'chat-message':
-        this.eventHandlers.onChatMessage?.(payload as ChatMessageData);
-        break;
-      default:
-        console.warn(`⚠️ Unknown data channel message type: ${type}`);
+    // Validate message type matches channel
+    if (channelType === 'cursor' && type === 'cursor-update') {
+      this.eventHandlers.onCursorUpdate?.(payload as CursorUpdateData);
+    } else if (channelType === 'chat' && type === 'chat-message') {
+      this.eventHandlers.onChatMessage?.(payload as ChatMessageData);
+    } else {
+      console.warn(`⚠️ Message type '${type}' not allowed on '${channelType}' channel`);
     }
   }
 
@@ -389,8 +406,12 @@ export class WebRTCService {
 
     console.log(`🔌 Closing peer connection with ${peerId}`);
 
-    if (peer.dataChannel) {
-      peer.dataChannel.close();
+    if (peer.cursorDataChannel) {
+      peer.cursorDataChannel.close();
+    }
+    
+    if (peer.chatDataChannel) {
+      peer.chatDataChannel.close();
     }
     
     peer.connection.close();
@@ -399,15 +420,17 @@ export class WebRTCService {
     this.eventHandlers.onPeerDisconnected?.(peerId);
   }
 
-  private broadcastToDataChannel(type: string, payload: any): void {
+  private broadcastToDataChannel(type: string, payload: any, channelType: 'cursor' | 'chat' = 'cursor'): void {
     const message = JSON.stringify({ type, payload });
     
     for (const [peerId, peer] of this.peers) {
-      if (peer.dataChannel && peer.dataChannel.readyState === 'open') {
+      const dataChannel = channelType === 'cursor' ? peer.cursorDataChannel : peer.chatDataChannel;
+      
+      if (dataChannel && dataChannel.readyState === 'open') {
         try {
-          peer.dataChannel.send(message);
+          dataChannel.send(message);
         } catch (error) {
-          console.error(`❌ Failed to send data to peer ${peerId}:`, error);
+          console.error(`❌ Failed to send ${channelType} data to peer ${peerId}:`, error);
         }
       }
     }

@@ -8,6 +8,7 @@ import { webSocketService, ConnectionStatus } from '@services/websocket';
 import { webRTCService } from '@services/webrtc';
 import { PixelUpdateData, CursorUpdateData, ChatMessageData } from '@libs/common-types';
 import { useTheme } from '@contexts/ThemeContext';
+import { useChatContext } from '@contexts/ChatContext';
 
 interface CanvasProps {
   className?: string;
@@ -15,6 +16,7 @@ interface CanvasProps {
 
 const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   const { theme } = useTheme();
+  const { addMessage } = useChatContext();
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const stateSyncRef = useRef<StateSynchronizer | null>(null);
@@ -184,8 +186,8 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
 
   const handleChatMessage = useCallback((data: ChatMessageData) => {
     console.log('💬 Chat message received:', data);
-    // TODO: Handle chat messages when chat widget is implemented
-  }, []);
+    addMessage(data);
+  }, [addMessage]);
 
   const handlePeerConnected = useCallback((peerId: string) => {
     console.log('👥 Peer connected:', peerId);
