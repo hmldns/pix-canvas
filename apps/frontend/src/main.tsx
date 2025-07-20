@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
+import { ThemeProvider } from './contexts/ThemeContext';
 import './index.css';
 
 // Initialize Sentry if DSN is provided
@@ -25,6 +26,8 @@ if (loadingElement) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </React.StrictMode>,
 );

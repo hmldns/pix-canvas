@@ -242,6 +242,14 @@ export class CanvasRenderer {
     return this.grid;
   }
 
+  /**
+   * Update the background color of the renderer
+   */
+  public updateBackgroundColor(color: number): void {
+    this.app.renderer.backgroundColor = color;
+    console.log(`🎨 Background color updated to 0x${color.toString(16)}`);
+  }
+
   // Utility methods for pixel manipulation (to be expanded later)
   public addPixel(x: number, y: number, color: number): void {
     const canvasContainer = this.canvasContainer;

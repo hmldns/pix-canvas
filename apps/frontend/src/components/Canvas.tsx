@@ -5,12 +5,14 @@ import { InputController } from '@canvas/interaction/inputController';
 import { apiService } from '@services/api';
 import { webSocketService, ConnectionStatus } from '@services/websocket';
 import { PixelUpdateData } from '@libs/common-types';
+import { useTheme } from '@contexts/ThemeContext';
 
 interface CanvasProps {
   className?: string;
 }
 
 const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const stateSyncRef = useRef<StateSynchronizer | null>(null);
@@ -110,9 +112,10 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
 
     console.log('🎨 Initializing Canvas systems...');
 
-    // Initialize PixiJS renderer
+    // Initialize PixiJS renderer with theme-aware background
+    const backgroundColor = theme === 'dark' ? 0x1f2937 : 0xf8fafc; // Dark gray for dark mode, light gray for light mode
     const renderer = new CanvasRenderer({
-      backgroundColor: 0xf8fafc, // Light mode background
+      backgroundColor,
     });
     renderer.mount(containerRef.current);
     rendererRef.current = renderer;
@@ -178,6 +181,17 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
       webSocketService.disconnect();
     };
   }, [initializeCanvas]);
+
+  /**
+   * Update canvas background when theme changes
+   */
+  useEffect(() => {
+    if (rendererRef.current) {
+      const backgroundColor = theme === 'dark' ? 0x1f2937 : 0xf8fafc;
+      rendererRef.current.updateBackgroundColor(backgroundColor);
+      console.log(`🎨 Canvas background updated for ${theme} theme`);
+    }
+  }, [theme]);
 
   /**
    * Update input controller when selected color changes
