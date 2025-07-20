@@ -244,7 +244,7 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
       )}
 
       {/* Status indicators */}
-      <div className="absolute top-4 right-4 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg z-30">
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg z-30">
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${
