@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { CanvasRenderer } from '@canvas/rendering/CanvasRenderer';
 import { CursorRenderer } from '@canvas/rendering/CursorRenderer';
 import { StateSynchronizer } from '@canvas/state/stateSync';
@@ -16,7 +16,12 @@ interface CanvasProps {
   className?: string;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
+export interface CanvasRef {
+  setSoundVolume: (volume: number) => void;
+  setSoundsEnabled: (enabled: boolean) => void;
+}
+
+const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
   const { theme } = useTheme();
   const { addMessage } = useChatContext();
   const { addUser, removeUser, setCurrentUser } = useUserContext();
@@ -37,6 +42,20 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   
   // Prevent multiple initializations
   const initializationRef = useRef({ canvas: false, webrtc: false });
+
+  // Expose sound control methods to parent component
+  useImperativeHandle(ref, () => ({
+    setSoundVolume: (volume: number) => {
+      if (rendererRef.current) {
+        rendererRef.current.setSoundVolume(volume);
+      }
+    },
+    setSoundsEnabled: (enabled: boolean) => {
+      if (rendererRef.current) {
+        rendererRef.current.setSoundsEnabled(enabled);
+      }
+    },
+  }));
 
   /**
    * Initialize user session and fetch initial canvas data
@@ -342,20 +361,29 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   }, [handlePixelUpdate, handleCanvasReload, handleConnectionStatusChange]);
 
   /**
-   * Cursor renderer update loop
+   * Animation update loop (cursors and effects)
    */
   useEffect(() => {
     let animationFrame: number;
+    let lastTime = 0;
 
-    const updateCursors = () => {
+    const updateAnimations = (currentTime: number) => {
+      const deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
       if (cursorRendererRef.current) {
         cursorRendererRef.current.update();
       }
-      animationFrame = requestAnimationFrame(updateCursors);
+
+      if (rendererRef.current) {
+        rendererRef.current.updateEffects(deltaTime);
+      }
+
+      animationFrame = requestAnimationFrame(updateAnimations);
     };
 
     // Start the update loop
-    animationFrame = requestAnimationFrame(updateCursors);
+    animationFrame = requestAnimationFrame(updateAnimations);
 
     return () => {
       if (animationFrame) {
@@ -383,6 +411,28 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
       inputControllerRef.current.setSelectedColor(selectedColor);
     }
   }, [selectedColor]);
+
+  /**
+   * Handle user interaction to resume audio context
+   */
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      if (rendererRef.current) {
+        rendererRef.current.resumeAudio();
+      }
+    };
+
+    // Add listeners for user interaction
+    document.addEventListener('click', handleUserInteraction, { once: true });
+    document.addEventListener('keydown', handleUserInteraction, { once: true });
+    document.addEventListener('touchstart', handleUserInteraction, { once: true });
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
 
   return (
     <div className="relative w-full h-full">
@@ -451,10 +501,23 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
             ></div>
             <span className="font-mono text-xs">{selectedColor}</span>
           </div>
+          <div>
+            <button 
+              onClick={() => {
+                if (rendererRef.current) {
+                  rendererRef.current.resumeAudio();
+                  rendererRef.current.playPixelSound(selectedColor, true); // true = own pixel
+                }
+              }}
+              className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+            >
+              Test Sound
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
-};
+});
 
 export default Canvas;

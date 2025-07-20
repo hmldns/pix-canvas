@@ -1,5 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { Grid } from './Grid';
+import { PixelEffectManager } from '../animation/effects';
+import { PixelSoundManager } from '../audio/sounds';
 
 export interface CanvasRendererConfig {
   width: number;
@@ -13,6 +15,8 @@ export class CanvasRenderer {
   private viewport: HTMLElement | null = null;
   private isInitialized = false;
   private grid: Grid | null = null;
+  private _effectManager: PixelEffectManager | null = null;
+  private _soundManager: PixelSoundManager | null = null;
 
   constructor(config: Partial<CanvasRendererConfig> = {}) {
     const defaultConfig: CanvasRendererConfig = {
@@ -51,6 +55,12 @@ export class CanvasRenderer {
     // Initialize the grid system
     this.initializeGrid(canvasContainer);
 
+    // Initialize the effect manager
+    this.initializeEffects(canvasContainer);
+
+    // Initialize the sound manager
+    this.initializeSounds();
+
     // Basic zoom and pan setup (very simple for now)
     this.setupViewportControls();
   }
@@ -76,6 +86,22 @@ export class CanvasRenderer {
     container.y = this.app.screen.height / 2 - canvasCenterY * initialScale;
     
     console.log('✅ Grid system initialized with Level-of-Detail rendering');
+  }
+
+  /**
+   * Initialize the pixel effect system
+   */
+  private initializeEffects(container: PIXI.Container): void {
+    this._effectManager = new PixelEffectManager(container);
+    console.log('✅ Pixel effect system initialized');
+  }
+
+  /**
+   * Initialize the sound effect system
+   */
+  private initializeSounds(): void {
+    this._soundManager = new PixelSoundManager();
+    console.log('✅ Pixel sound system initialized');
   }
 
   /**
@@ -217,6 +243,18 @@ export class CanvasRenderer {
       this.grid = null;
     }
     
+    // Destroy effect manager
+    if (this._effectManager) {
+      this._effectManager.destroy();
+      this._effectManager = null;
+    }
+
+    // Destroy sound manager
+    if (this._soundManager) {
+      this._soundManager.destroy();
+      this._soundManager = null;
+    }
+    
     this.app.destroy(true, { children: true, texture: true, baseTexture: true });
     console.log('✅ Canvas renderer destroyed');
   }
@@ -261,6 +299,12 @@ export class CanvasRenderer {
     pixel.endFill();
     
     canvasContainer.addChild(pixel);
+    
+    // Trigger particle effect and sound (default to own pixel for direct addPixel calls)
+    const colorHex = `#${color.toString(16).padStart(6, '0')}`;
+    this.triggerPixelEffect(x, y, colorHex, true);
+    this.playPixelSound(colorHex, true);
+    
     console.log(`🎨 Added pixel at (${x}, ${y}) with color 0x${color.toString(16)}`);
   }
 
@@ -278,5 +322,82 @@ export class CanvasRenderer {
     });
     
     console.log('🧹 Canvas cleared');
+  }
+
+  /**
+   * Trigger a pixel drawing effect at the specified location
+   */
+  public triggerPixelEffect(x: number, y: number, color: string, isOwnPixel = true): void {
+    if (this._effectManager) {
+      this._effectManager.createPixelEffect(x, y, color, isOwnPixel);
+    }
+  }
+
+  /**
+   * Update effects (call this in the main render loop)
+   */
+  public updateEffects(deltaTime: number): void {
+    if (this._effectManager) {
+      this._effectManager.update(deltaTime);
+    }
+  }
+
+  /**
+   * Get the effect manager instance
+   */
+  public get effectManager(): PixelEffectManager | null {
+    return this._effectManager;
+  }
+
+  /**
+   * Clear all active effects
+   */
+  public clearEffects(): void {
+    if (this._effectManager) {
+      this._effectManager.clearAllEffects();
+    }
+  }
+
+  /**
+   * Play pixel placement sound effect
+   */
+  public playPixelSound(color?: string, isOwnPixel = true): void {
+    if (this._soundManager) {
+      this._soundManager.playPixelPlaceSound(color, isOwnPixel);
+    }
+  }
+
+  /**
+   * Resume audio context (call on user interaction)
+   */
+  public resumeAudio(): void {
+    if (this._soundManager) {
+      this._soundManager.resumeAudioContext();
+    }
+  }
+
+  /**
+   * Enable/disable sound effects
+   */
+  public setSoundsEnabled(enabled: boolean): void {
+    if (this._soundManager) {
+      this._soundManager.setEnabled(enabled);
+    }
+  }
+
+  /**
+   * Set sound volume (0 to 1)
+   */
+  public setSoundVolume(volume: number): void {
+    if (this._soundManager) {
+      this._soundManager.setVolume(volume);
+    }
+  }
+
+  /**
+   * Get the sound manager instance
+   */
+  public get soundManager(): PixelSoundManager | null {
+    return this._soundManager;
   }
 }

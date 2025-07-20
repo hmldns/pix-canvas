@@ -1,6 +1,7 @@
 import { CanvasRenderer } from '../rendering/CanvasRenderer';
 import { PixelRenderer } from '../rendering/PixelRenderer';
 import { PixelUpdateData } from '@libs/common-types';
+import { apiService } from '@services/api';
 
 /**
  * State Synchronization Module
@@ -45,7 +46,7 @@ export class StateSynchronizer {
   /**
    * Synchronize pixel updates from WebSocket or initial load
    */
-  public syncPixelUpdates(pixels: PixelUpdateData[]): void {
+  public syncPixelUpdates(pixels: PixelUpdateData[], playEffects = true): void {
     console.log(`🔄 Syncing ${pixels.length} pixel updates to canvas`);
 
     pixels.forEach(pixelData => {
@@ -60,6 +61,17 @@ export class StateSynchronizer {
       // Use PixelRenderer to add/update the pixel
       this.pixelRenderer.addPixel(pixelData);
 
+      // Trigger visual and audio effects for new pixels (but not during initial load)
+      if (playEffects) {
+        // Check if this is our own pixel or another user's pixel
+        const currentUser = apiService.getCachedUser();
+        const isOwnPixel = currentUser && pixelData.userId === currentUser.userId;
+        
+        // Trigger effects with different intensities for own vs others' pixels
+        this.renderer.triggerPixelEffect(pixelData.x, pixelData.y, pixelData.color, isOwnPixel);
+        this.renderer.playPixelSound(pixelData.color, isOwnPixel);
+      }
+
       console.log(`🎨 Synced pixel at (${pixelData.x}, ${pixelData.y}) color: ${pixelData.color}`);
     });
   }
@@ -73,8 +85,8 @@ export class StateSynchronizer {
     // Clear existing pixels
     this.clearAllPixels();
     
-    // Add all pixels
-    this.syncPixelUpdates(pixels);
+    // Add all pixels without effects (silent initial load)
+    this.syncPixelUpdates(pixels, false);
     
     console.log('✅ Full canvas state synchronized');
   }
