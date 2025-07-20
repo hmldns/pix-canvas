@@ -59,20 +59,20 @@ export class CanvasRenderer {
     
     const graphics = new PIXI.Graphics();
     
-    // Draw a simple grid pattern
-    graphics.lineStyle(1, 0xe5e7eb, 0.5); // Light gray lines
+    // Draw a grid where each cell = 1 pixel coordinate
+    graphics.lineStyle(1, 0xe5e7eb, 0.3); // Light gray lines, semi-transparent
     
-    const gridSize = 20; // 20 pixel grid
+    const gridSize = 1; // 1 unit grid (each cell = 1 pixel coordinate)
     const canvasWidth = 5000;
     const canvasHeight = 5000;
     
-    // Vertical lines
+    // Vertical lines every 1 unit
     for (let x = 0; x <= canvasWidth; x += gridSize) {
       graphics.moveTo(x, 0);
       graphics.lineTo(x, canvasHeight);
     }
     
-    // Horizontal lines
+    // Horizontal lines every 1 unit
     for (let y = 0; y <= canvasHeight; y += gridSize) {
       graphics.moveTo(0, y);
       graphics.lineTo(canvasWidth, y);
@@ -81,11 +81,15 @@ export class CanvasRenderer {
     gridContainer.addChild(graphics);
     container.addChild(gridContainer);
     
-    // Position grid at center of viewport initially
-    container.x = -canvasWidth / 2 + this.app.screen.width / 2;
-    container.y = -canvasHeight / 2 + this.app.screen.height / 2;
+    // Set initial scale so 1 pixel coordinate = ~30 screen pixels
+    const initialScale = 30;
+    container.scale.set(initialScale);
     
-    console.log('✅ Background grid created');
+    // Position grid so coordinate (0,0) is near center of viewport
+    container.x = this.app.screen.width / 2;
+    container.y = this.app.screen.height / 2;
+    
+    console.log('✅ Background grid created with 1:1 pixel mapping');
   }
 
   private setupViewportControls(): void {
@@ -126,19 +130,40 @@ export class CanvasRenderer {
       this.app.stage.cursor = 'default';
     });
 
-    // Basic zoom controls (mouse wheel)
+    // Basic zoom controls (mouse wheel) with proper pivot point
     this.app.view.addEventListener('wheel', (event: WheelEvent) => {
       event.preventDefault();
       
       const canvasContainer = this.app.stage.getChildByName('canvas-container');
       if (!canvasContainer) return;
 
-      const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.max(0.1, Math.min(5, canvasContainer.scale.x * zoomFactor));
+      // Get mouse position relative to the canvas
+      const mousePos = { x: event.offsetX, y: event.offsetY };
       
-      canvasContainer.scale.set(newScale);
+      // Calculate zoom
+      const zoomFactor = event.deltaY > 0 ? 0.95 : 1.05; // Smoother zoom
+      const currentScale = canvasContainer.scale.x;
+      // Min zoom: 4px per pixel coordinate, Max zoom: 100px per pixel coordinate
+      const minScale = 4;  // Maximum zoom out (pixels appear as 4px squares)
+      const maxScale = 100; // Maximum zoom in (pixels appear as 100px squares)
+      const newScale = Math.max(minScale, Math.min(maxScale, currentScale * zoomFactor));
       
-      console.log(`🔍 Zoom: ${Math.round(newScale * 100)}%`);
+      if (newScale !== currentScale) {
+        // Calculate world position before zoom
+        const worldPosBeforeZoom = {
+          x: (mousePos.x - canvasContainer.x) / currentScale,
+          y: (mousePos.y - canvasContainer.y) / currentScale
+        };
+        
+        // Apply new scale
+        canvasContainer.scale.set(newScale);
+        
+        // Calculate new position to keep the mouse point stable
+        canvasContainer.x = mousePos.x - worldPosBeforeZoom.x * newScale;
+        canvasContainer.y = mousePos.y - worldPosBeforeZoom.y * newScale;
+        
+        console.log(`🔍 Zoom: ${newScale.toFixed(1)}x (${newScale.toFixed(1)}px per pixel)`);
+      }
     });
 
     console.log('✅ Basic viewport controls enabled');

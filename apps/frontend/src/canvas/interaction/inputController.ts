@@ -137,22 +137,40 @@ export class InputController {
     const canvasContainer = this.renderer.canvasContainer;
     if (!canvasContainer) return;
 
+    // Get mouse position relative to the canvas
+    const mousePos = { x: event.offsetX, y: event.offsetY };
+
     // Calculate zoom
-    const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+    const zoomFactor = event.deltaY > 0 ? 0.95 : 1.05; // Smoother zoom
     const currentScale = canvasContainer.scale.x;
-    const newScale = Math.max(0.1, Math.min(10, currentScale * zoomFactor));
+    // Min zoom: 4px per pixel coordinate, Max zoom: 100px per pixel coordinate
+    const minScale = 4;  // Maximum zoom out (pixels appear as 4px squares)
+    const maxScale = 100; // Maximum zoom in (pixels appear as 100px squares)
+    const newScale = Math.max(minScale, Math.min(maxScale, currentScale * zoomFactor));
 
-    // Apply zoom
-    canvasContainer.scale.set(newScale);
+    if (newScale !== currentScale) {
+      // Calculate world position before zoom
+      const worldPosBeforeZoom = {
+        x: (mousePos.x - canvasContainer.x) / currentScale,
+        y: (mousePos.y - canvasContainer.y) / currentScale
+      };
+      
+      // Apply new scale
+      canvasContainer.scale.set(newScale);
+      
+      // Calculate new position to keep the mouse point stable
+      canvasContainer.x = mousePos.x - worldPosBeforeZoom.x * newScale;
+      canvasContainer.y = mousePos.y - worldPosBeforeZoom.y * newScale;
 
-    // Notify callbacks
-    this.callbacks.onViewportChange?.(
-      newScale,
-      canvasContainer.x,
-      canvasContainer.y
-    );
+      // Notify callbacks
+      this.callbacks.onViewportChange?.(
+        newScale,
+        canvasContainer.x,
+        canvasContainer.y
+      );
 
-    console.log(`🔍 Zoom changed to ${Math.round(newScale * 100)}%`);
+      console.log(`🔍 Zoom: ${newScale.toFixed(1)}x (${newScale.toFixed(1)}px per pixel)`);
+    }
   }
 
   /**
@@ -163,6 +181,10 @@ export class InputController {
       case 'Space':
         event.preventDefault();
         this.renderer.stage.cursor = 'grab';
+        break;
+      case 'KeyR':
+        // Reset view to center and default zoom
+        this.resetView();
         break;
     }
   }
@@ -290,6 +312,33 @@ export class InputController {
   private isSpacePressed(): boolean {
     // Simple space key tracking (could be enhanced with proper key state tracking)
     return false; // For now, simplified
+  }
+
+  /**
+   * Reset view to center and default zoom
+   */
+  public resetView(): void {
+    const canvasContainer = this.renderer.canvasContainer;
+    if (!canvasContainer) return;
+
+    const app = this.renderer.application;
+    
+    // Reset scale to default (30px per pixel)
+    const defaultScale = 30;
+    canvasContainer.scale.set(defaultScale);
+    
+    // Center the view at coordinate (0,0)
+    canvasContainer.x = app.screen.width / 2;
+    canvasContainer.y = app.screen.height / 2;
+    
+    console.log('🎯 View reset to center with default zoom');
+    
+    // Notify callbacks
+    this.callbacks.onViewportChange?.(
+      defaultScale,
+      canvasContainer.x,
+      canvasContainer.y
+    );
   }
 
   /**
