@@ -16,6 +16,7 @@ const VolumeControlWidget: React.FC<VolumeControlWidgetProps> = ({
 }) => {
   const [volume, setVolume] = useState(initialVolume);
   const [enabled, setEnabled] = useState(initialEnabled);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   useEffect(() => {
     onVolumeChange(volume);
@@ -114,12 +115,71 @@ const VolumeControlWidget: React.FC<VolumeControlWidgetProps> = ({
 
   return (
     <div className="absolute top-4 left-72 z-10">
-      <BaseWidget 
-        title="Audio" 
-        defaultCollapsed={true}
-      >
-        {content}
-      </BaseWidget>
+      <div className="
+        bg-white dark:bg-gray-800 
+        border border-gray-200 dark:border-gray-700
+        rounded-lg shadow-lg
+        min-w-64 max-w-sm
+        transition-all duration-200 ease-in-out
+      ">
+        {/* Widget Header */}
+        <div 
+          className="
+            flex items-center justify-between
+            px-4 py-3
+            bg-gray-50 dark:bg-gray-700
+            border-b border-gray-200 dark:border-gray-700
+            rounded-t-lg
+            cursor-pointer
+            hover:bg-gray-100 dark:hover:bg-gray-600
+            transition-colors duration-150
+          "
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          <h3 className="
+            text-sm font-medium
+            text-gray-900 dark:text-gray-100
+            select-none
+          ">
+            Audio
+          </h3>
+          
+          {/* Collapse/Expand Icon */}
+          <button className="
+            text-gray-500 dark:text-gray-400
+            hover:text-gray-700 dark:hover:text-gray-200
+            transition-colors duration-150
+            p-1
+          ">
+            <svg 
+              className={`
+                w-4 h-4 transition-transform duration-200
+                ${isCollapsed ? 'rotate-180' : ''}
+              `}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M19 9l-7 7-7-7" 
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Widget Content */}
+        <div className={`
+          overflow-hidden transition-all duration-200 ease-in-out
+          ${isCollapsed ? 'max-h-0' : 'max-h-96'}
+        `}>
+          <div className="p-4">
+            {content}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
