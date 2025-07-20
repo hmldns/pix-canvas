@@ -163,10 +163,7 @@ export class InputController {
       canvasContainer.y = mousePos.y - worldPosBeforeZoom.y * newScale;
 
       // Update grid for new scale
-      const gridContainer = canvasContainer.getChildByName('grid-container') as PIXI.Container;
-      if (gridContainer) {
-        this.renderer.updateGrid(gridContainer, newScale);
-      }
+      this.renderer.updateGrid(newScale);
 
       // Notify callbacks
       this.callbacks.onViewportChange?.(

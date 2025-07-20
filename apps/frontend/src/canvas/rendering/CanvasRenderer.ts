@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js';
+import { Grid } from './Grid';
 
 export interface CanvasRendererConfig {
   width: number;
@@ -11,6 +12,7 @@ export class CanvasRenderer {
   private app: PIXI.Application;
   private viewport: HTMLElement | null = null;
   private isInitialized = false;
+  private grid: Grid | null = null;
 
   constructor(config: Partial<CanvasRendererConfig> = {}) {
     const defaultConfig: CanvasRendererConfig = {
@@ -46,25 +48,26 @@ export class CanvasRenderer {
     canvasContainer.name = 'canvas-container';
     this.app.stage.addChild(canvasContainer);
 
-    // Add a background grid for visual reference
-    this.createBackgroundGrid(canvasContainer);
+    // Initialize the grid system
+    this.initializeGrid(canvasContainer);
 
     // Basic zoom and pan setup (very simple for now)
     this.setupViewportControls();
   }
 
-  private createBackgroundGrid(container: PIXI.Container): void {
-    const gridContainer = new PIXI.Container();
-    gridContainer.name = 'grid-container';
-    
-    // Create dynamic grid that covers the entire 5000x5000 canvas
-    this.updateGrid(gridContainer, 30); // Initial scale
-    
-    container.addChild(gridContainer);
+  /**
+   * Initialize the grid system using the dedicated Grid class
+   */
+  private initializeGrid(container: PIXI.Container): void {
+    // Create grid instance
+    this.grid = new Grid(container);
     
     // Set initial scale so 1 pixel coordinate = ~30 screen pixels
     const initialScale = 30;
     container.scale.set(initialScale);
+    
+    // Update grid for initial scale
+    this.grid.update(initialScale);
     
     // Position so the center of valid canvas (2500, 2500) is at viewport center
     const canvasCenterX = 2500;
@@ -72,100 +75,16 @@ export class CanvasRenderer {
     container.x = this.app.screen.width / 2 - canvasCenterX * initialScale;
     container.y = this.app.screen.height / 2 - canvasCenterY * initialScale;
     
-    console.log('✅ Dynamic Level-of-Detail grid created for 5000x5000 canvas');
+    console.log('✅ Grid system initialized with Level-of-Detail rendering');
   }
 
   /**
-   * Update grid based on current zoom level (Level of Detail)
-   * Grid lines at 1, 10, 100, 1000 pixel intervals with different shades
+   * Update grid based on current zoom level (delegates to Grid class)
    */
-  public updateGrid(gridContainer: PIXI.Container, scale: number): void {
-    // Clear existing grid
-    gridContainer.removeChildren();
-    
-    const graphics = new PIXI.Graphics();
-    
-    // Canvas bounds: 5000x5000 from (0,0) to (4999,4999)
-    const canvasSize = 5000;
-    const minCoord = 0;
-    const maxCoord = canvasSize - 1; // 4999
-    
-    // Calculate which grid levels to show based on zoom
-    const pixelsPerScreenPixel = 1 / scale;
-    const shouldShow1px = scale >= 8;   // Show 1px grid when zoomed in enough
-    const shouldShow10px = scale >= 2;  // Show 10px grid at medium zoom
-    const shouldShow100px = scale >= 0.5; // Show 100px grid at low zoom
-    const shouldShow1000px = true;      // Always show 1000px grid
-    
-    // Define grid colors and line widths (in screen pixels)
-    const gridLevels = [
-      { interval: 1000, color: 0x6b7280, alpha: 0.8, width: 2 }, // Dark gray
-      { interval: 100, color: 0x9ca3af, alpha: 0.6, width: 1.5 }, // Medium gray
-      { interval: 10, color: 0xd1d5db, alpha: 0.4, width: 1 },   // Light gray
-      { interval: 1, color: 0xe5e7eb, alpha: 0.2, width: 0.5 }   // Very light gray
-    ];
-    
-    // Render grid levels from largest to smallest
-    gridLevels.forEach(level => {
-      let shouldRender = false;
-      
-      switch (level.interval) {
-        case 1: shouldRender = shouldShow1px; break;
-        case 10: shouldRender = shouldShow10px; break;
-        case 100: shouldRender = shouldShow100px; break;
-        case 1000: shouldRender = shouldShow1000px; break;
-      }
-      
-      if (!shouldRender) return;
-      
-      // Set line style - width should be constant in screen pixels
-      const lineWidth = level.width / scale;
-      graphics.lineStyle(lineWidth, level.color, level.alpha);
-      
-      // Draw vertical lines within valid canvas bounds only
-      for (let x = Math.ceil(minCoord / level.interval) * level.interval; x <= maxCoord; x += level.interval) {
-        graphics.moveTo(x, minCoord);
-        graphics.lineTo(x, maxCoord);
-      }
-      
-      // Draw horizontal lines within valid canvas bounds only
-      for (let y = Math.ceil(minCoord / level.interval) * level.interval; y <= maxCoord; y += level.interval) {
-        graphics.moveTo(minCoord, y);
-        graphics.lineTo(maxCoord, y);
-      }
-    });
-    
-    // Add out-of-bounds gray areas (no grid, just gray fill)
-    const viewportSize = 10000; // Large enough to cover any reasonable viewport
-    
-    graphics.beginFill(0xf5f5f5, 0.3); // Light gray, semi-transparent
-    
-    // Left gray area (x < 0)
-    graphics.drawRect(-viewportSize, -viewportSize, viewportSize, viewportSize * 2);
-    
-    // Right gray area (x >= 5000)
-    graphics.drawRect(canvasSize, -viewportSize, viewportSize, viewportSize * 2);
-    
-    // Top gray area (y < 0)
-    graphics.drawRect(minCoord, -viewportSize, canvasSize, viewportSize);
-    
-    // Bottom gray area (y >= 5000)
-    graphics.drawRect(minCoord, canvasSize, canvasSize, viewportSize);
-    
-    graphics.endFill();
-    
-    // Add canvas boundary - distinct red border to mark the allowed region
-    graphics.lineStyle(3 / scale, 0xff4444, 1.0); // Red border, constant screen width
-    graphics.drawRect(minCoord, minCoord, canvasSize, canvasSize);
-    
-    gridContainer.addChild(graphics);
-    
-    console.log(`🔄 Grid updated for scale ${scale.toFixed(1)}x - Levels: ${[
-      shouldShow1px && '1px',
-      shouldShow10px && '10px', 
-      shouldShow100px && '100px',
-      shouldShow1000px && '1000px'
-    ].filter(Boolean).join(', ')} + boundary`);
+  public updateGrid(scale: number): void {
+    if (this.grid) {
+      this.grid.update(scale);
+    }
   }
 
   private setupViewportControls(): void {
@@ -239,10 +158,7 @@ export class CanvasRenderer {
         canvasContainer.y = mousePos.y - worldPosBeforeZoom.y * newScale;
         
         // Update grid for new scale
-        const gridContainer = canvasContainer.getChildByName('grid-container') as PIXI.Container;
-        if (gridContainer) {
-          this.updateGrid(gridContainer, newScale);
-        }
+        this.updateGrid(newScale);
         
         console.log(`🔍 Zoom: ${newScale.toFixed(1)}x (${newScale.toFixed(1)}px per pixel)`);
       }
@@ -294,6 +210,13 @@ export class CanvasRenderer {
 
   public destroy(): void {
     this.unmount();
+    
+    // Destroy grid
+    if (this.grid) {
+      this.grid.destroy();
+      this.grid = null;
+    }
+    
     this.app.destroy(true, { children: true, texture: true, baseTexture: true });
     console.log('✅ Canvas renderer destroyed');
   }
@@ -313,6 +236,10 @@ export class CanvasRenderer {
 
   public get isReady(): boolean {
     return this.isInitialized;
+  }
+
+  public get gridRenderer(): Grid | null {
+    return this.grid;
   }
 
   // Utility methods for pixel manipulation (to be expanded later)
