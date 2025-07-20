@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "build": "make build",
+    "build:libs": "cd libs/common-types && npm run build && cd ../utils && npm run build",
     "dev": "make up",
+    "dev-backend": "npm run build:libs && cd apps/backend && npm run dev",
     "test": "make test-backend"
   },
   "workspaces": [

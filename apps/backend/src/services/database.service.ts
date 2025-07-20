@@ -11,7 +11,6 @@ export async function connectToDatabase(): Promise<void> {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       bufferCommands: false,
-      bufferMaxEntries: 0,
     });
     
     console.log(`✅ Successfully connected to MongoDB: ${config.mongodbUri}`);
