@@ -73,4 +73,5 @@ export interface ChatMessageData {
   nickname: string;
   message: string;
   timestamp: number;
+  color?: string; // User's color for consistent display
 }

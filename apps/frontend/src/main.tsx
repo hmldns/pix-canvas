@@ -4,6 +4,8 @@ import * as Sentry from '@sentry/react';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ChatProvider } from './contexts/ChatContext';
+import { UserProvider } from './contexts/UserContext';
+import { ColorProvider } from './contexts/ColorContext';
 import './index.css';
 
 // Initialize Sentry if DSN is provided
@@ -28,9 +30,13 @@ if (loadingElement) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <ChatProvider>
-        <App />
-      </ChatProvider>
+      <ColorProvider>
+        <UserProvider>
+          <ChatProvider>
+            <App />
+          </ChatProvider>
+        </UserProvider>
+      </ColorProvider>
     </ThemeProvider>
   </React.StrictMode>,
 );

@@ -1,48 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import BaseWidget from './BaseWidget';
-
-interface OnlineUser {
-  id: string;
-  username: string;
-  color: string;
-  lastSeen: Date;
-  isOnline: boolean;
-}
+import { useUserContext, ConnectedUser } from '@contexts/UserContext';
 
 const UserListWidget: React.FC = () => {
-  const [users] = useState<OnlineUser[]>([
-    {
-      id: '1',
-      username: 'You',
-      color: '#FF3333',
-      lastSeen: new Date(),
-      isOnline: true
-    },
-    {
-      id: '2',
-      username: 'PixelArtist',
-      color: '#FF6B6B',
-      lastSeen: new Date(Date.now() - 30000),
-      isOnline: true
-    },
-    {
-      id: '3',
-      username: 'GridMaster',
-      color: '#4ECDC4',
-      lastSeen: new Date(Date.now() - 120000),
-      isOnline: true
-    },
-    {
-      id: '4',
-      username: 'ColorWizard',
-      color: '#45B7D1',
-      lastSeen: new Date(Date.now() - 300000),
-      isOnline: false
-    }
-  ]);
+  const { users, currentUser, onlineCount } = useUserContext();
 
   const onlineUsers = users.filter(user => user.isOnline);
   const offlineUsers = users.filter(user => !user.isOnline);
+
+  // Generate simple avatar initials from nickname
+  const getAvatarInitials = (nickname: string): string => {
+    return nickname
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   const formatLastSeen = (date: Date) => {
     const now = new Date();
@@ -54,16 +28,18 @@ const UserListWidget: React.FC = () => {
     return `${Math.floor(diff / 86400)}d ago`;
   };
 
-  const UserItem: React.FC<{ user: OnlineUser }> = ({ user }) => (
+  const UserItem: React.FC<{ user: ConnectedUser }> = ({ user }) => (
     <div className="flex items-center space-x-3 py-2">
-      {/* User Color Indicator */}
+      {/* User Avatar */}
       <div className="relative">
         <div 
-          className="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-600"
+          className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 flex items-center justify-center text-xs font-medium text-white"
           style={{ backgroundColor: user.color }}
-        />
+        >
+          {getAvatarInitials(user.nickname)}
+        </div>
         {user.isOnline && (
-          <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white dark:border-gray-800" />
+          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800" />
         )}
       </div>
       
@@ -71,9 +47,9 @@ const UserListWidget: React.FC = () => {
       <div className="flex-1 min-w-0">
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-            {user.username}
+            {user.nickname}
           </span>
-          {user.username === 'You' && (
+          {user.isLocal && (
             <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-1.5 py-0.5 rounded">
               You
             </span>
@@ -90,7 +66,7 @@ const UserListWidget: React.FC = () => {
 
   return (
     <BaseWidget 
-      title={`Users (${onlineUsers.length} online)`}
+      title={`Users (${onlineCount} online)`}
       position="top-right"
       defaultCollapsed={false}
     >

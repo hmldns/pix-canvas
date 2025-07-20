@@ -6,6 +6,7 @@ import { isValidCanvasCoordinate, isValidHexColor } from '@libs/utils';
 
 export interface InputControllerConfig {
   selectedColor: string;
+  userColor?: string; // User's assigned color for cursor sharing
   gridSize: number;
   enableDrawing: boolean;
   enablePanning: boolean;
@@ -349,7 +350,7 @@ export class InputController {
       this.hasValidCursorPosition = true;
 
       // Send cursor position via WebRTC (throttled automatically by data channel)
-      webRTCService.sendCursorUpdate(canvasCoords.x, canvasCoords.y);
+      webRTCService.sendCursorUpdate(canvasCoords.x, canvasCoords.y, this.config.userColor);
 
     } catch (error) {
       console.error('❌ Error sharing cursor position:', error);
@@ -414,6 +415,18 @@ export class InputController {
   }
 
   /**
+   * Set user color for cursor sharing
+   */
+  public setUserColor(color: string): void {
+    if (isValidHexColor(color)) {
+      this.config.userColor = color;
+      console.log(`👤 User color set to: ${color}`);
+    } else {
+      console.warn(`⚠️ Invalid user color format: ${color}`);
+    }
+  }
+
+  /**
    * Enable or disable drawing mode
    */
   public setDrawingEnabled(enabled: boolean): void {
@@ -447,7 +460,7 @@ export class InputController {
   private handleWindowFocus(): void {
     if (this.hasValidCursorPosition && this.config.enableCursorSharing) {
       // Re-send the last known cursor position when window regains focus
-      webRTCService.sendCursorUpdate(this.lastCursorPosition.x, this.lastCursorPosition.y);
+      webRTCService.sendCursorUpdate(this.lastCursorPosition.x, this.lastCursorPosition.y, this.config.userColor);
       console.log('🔄 Re-sent cursor position on window focus:', this.lastCursorPosition);
     }
   }

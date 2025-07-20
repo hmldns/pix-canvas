@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import BaseWidget from './BaseWidget';
+import { useColorContext } from '@contexts/ColorContext';
 
 const ColorPaletteWidget: React.FC = () => {
+  const { selectedColor, recentColors, setSelectedColor } = useColorContext();
+  
   // Predefined color palette
   const colorPalette = [
     '#FF0000', '#FF8000', '#FFFF00', '#80FF00', '#00FF00', '#00FF80',
@@ -13,14 +16,12 @@ const ColorPaletteWidget: React.FC = () => {
     '#FFFFFF', '#C0C0C0', '#808080', '#404040', '#000000', '#200020'
   ];
 
-  const [selectedColor, setSelectedColor] = useState('#FF3333');
-  const [customColor, setCustomColor] = useState('#FF3333');
+  const [customColor, setCustomColor] = useState(selectedColor);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
 
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);
     setCustomColor(color);
-    // TODO: Update global color state or notify Canvas component
     console.log('Selected color:', color);
   };
 
@@ -138,9 +139,31 @@ const ColorPaletteWidget: React.FC = () => {
           <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
             Recent
           </h4>
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
-            No recent colors
-          </div>
+          {recentColors.length > 0 ? (
+            <div className="grid grid-cols-8 gap-1.5">
+              {recentColors.map((color, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleColorSelect(color)}
+                  className={`
+                    w-6 h-6 rounded border-2 transition-all duration-150
+                    hover:scale-110 hover:z-10 relative
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+                    ${selectedColor === color 
+                      ? 'border-gray-900 dark:border-white shadow-lg scale-110' 
+                      : 'border-gray-300 dark:border-gray-600'
+                    }
+                  `}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
+              No recent colors
+            </div>
+          )}
         </div>
       </div>
     </BaseWidget>

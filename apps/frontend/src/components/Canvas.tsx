@@ -9,6 +9,8 @@ import { webRTCService } from '@services/webrtc';
 import { PixelUpdateData, CursorUpdateData, ChatMessageData } from '@libs/common-types';
 import { useTheme } from '@contexts/ThemeContext';
 import { useChatContext } from '@contexts/ChatContext';
+import { useUserContext } from '@contexts/UserContext';
+import { useColorContext } from '@contexts/ColorContext';
 
 interface CanvasProps {
   className?: string;
@@ -17,6 +19,8 @@ interface CanvasProps {
 const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   const { theme } = useTheme();
   const { addMessage } = useChatContext();
+  const { addUser, removeUser, setCurrentUser } = useUserContext();
+  const { selectedColor } = useColorContext();
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const stateSyncRef = useRef<StateSynchronizer | null>(null);
@@ -26,17 +30,25 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   // State for canvas data and connection
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
-  const [selectedColor, setSelectedColor] = useState('#FF0000');
   const [pixelCount, setPixelCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [webRTCConnected, setWebRTCConnected] = useState(false);
   const [connectedPeers, setConnectedPeers] = useState<string[]>([]);
+  
+  // Prevent multiple initializations
+  const initializationRef = useRef({ canvas: false, webrtc: false });
 
   /**
    * Initialize user session and fetch initial canvas data
    */
   const initializeCanvas = useCallback(async () => {
+    if (initializationRef.current.canvas) {
+      console.log('⚠️ Canvas already initialized, skipping...');
+      return;
+    }
+    
     try {
+      initializationRef.current.canvas = true;
       setIsLoading(true);
       setError(null);
 
@@ -46,8 +58,20 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
       const user = await apiService.initializeSession();
       console.log('👤 User session initialized:', user);
 
-      // Set initial color from user
-      setSelectedColor(user.color);
+      // Set current user with real backend data
+      setCurrentUser({
+        id: user.userId,
+        nickname: user.nickname,
+        color: user.color,
+        lastSeen: new Date(),
+        isOnline: true,
+        isLocal: true
+      });
+
+      // Update input controller with user color for cursor sharing
+      if (inputControllerRef.current) {
+        inputControllerRef.current.setUserColor(user.color);
+      }
 
       // Fetch initial canvas state
       const pixels = await apiService.getCanvasPixels();
@@ -91,7 +115,9 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
    * Handle canvas reload request
    */
   const handleCanvasReload = useCallback(async () => {
-    console.log('🔄 Reloading canvas state...');
+    console.log('🔄 Canvas reload requested...');
+    // Reset the initialization flag to allow reload
+    initializationRef.current.canvas = false;
     await initializeCanvas();
   }, [initializeCanvas]);
 
@@ -131,15 +157,7 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
     const stateSync = new StateSynchronizer(renderer);
     stateSyncRef.current = stateSync;
 
-    // Setup WebSocket event handlers
-    webSocketService.updateHandlers({
-      onPixelUpdate: handlePixelUpdate,
-      onReloadCanvas: handleCanvasReload,
-      onConnect: () => handleConnectionStatusChange(ConnectionStatus.CONNECTED),
-      onDisconnect: () => handleConnectionStatusChange(ConnectionStatus.DISCONNECTED),
-      onError: () => handleConnectionStatusChange(ConnectionStatus.ERROR),
-      onReconnecting: () => handleConnectionStatusChange(ConnectionStatus.RECONNECTING),
-    });
+    // Note: WebSocket handlers are now set up in a separate effect
 
     // Initialize input controller
     const inputController = new InputController(
@@ -182,16 +200,38 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
     if (cursorRendererRef.current) {
       cursorRendererRef.current.updateCursor(data);
     }
-  }, []);
+    
+    // Add/update user in context from cursor data
+    addUser({
+      id: data.userId,
+      nickname: data.nickname,
+      color: data.color,
+    });
+  }, [addUser]);
 
   const handleChatMessage = useCallback((data: ChatMessageData) => {
     console.log('💬 Chat message received:', data);
     addMessage(data);
-  }, [addMessage]);
+    
+    // Ensure user is in context from chat data (might not have seen cursor yet)
+    const cachedUser = apiService.getCachedUser();
+    if (cachedUser && data.userId !== cachedUser.userId) {
+      // This is a remote user - add them if not already added
+      addUser({
+        id: data.userId,
+        nickname: data.nickname,
+        color: data.color || '', // Use color from chat data, or auto-generate if not available
+      });
+    }
+  }, [addMessage, addUser]);
 
   const handlePeerConnected = useCallback((peerId: string) => {
     console.log('👥 Peer connected:', peerId);
     setConnectedPeers(prev => [...prev.filter(id => id !== peerId), peerId]);
+    
+    // Don't add user to context immediately - wait for cursor updates
+    // to get their real nickname and color from WebRTC data
+    console.log('ℹ️ Waiting for cursor update to get peer user info...');
   }, []);
 
   const handlePeerDisconnected = useCallback((peerId: string) => {
@@ -200,25 +240,39 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
     if (cursorRendererRef.current) {
       cursorRendererRef.current.removeCursor(peerId);
     }
-  }, []);
+    
+    // Remove user from user context
+    removeUser(peerId);
+  }, [removeUser]);
 
   /**
    * Initialize WebRTC connection
    */
   const initializeWebRTC = useCallback(async () => {
+    if (initializationRef.current.webrtc) {
+      console.log('⚠️ WebRTC already initialized, skipping...');
+      return;
+    }
+    
     try {
+      initializationRef.current.webrtc = true;
       console.log('🔌 Initializing WebRTC connection...');
       
-      // Generate a simple user ID for this session
-      const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const nickname = `User${Math.floor(Math.random() * 1000)}`;
+      // Get current user data (should be set by initializeCanvas)
+      const cachedUser = apiService.getCachedUser();
+      if (!cachedUser) {
+        throw new Error('No user session found. Canvas should be initialized first.');
+      }
+      
+      console.log('👤 Using existing user for WebRTC:', cachedUser);
       
       await webRTCService.connect(
         {
           signalingUrl: 'http://localhost:3003',
           roomId: 'canvas-room',
-          userId,
-          nickname
+          userId: cachedUser.userId,
+          nickname: cachedUser.nickname,
+          userColor: cachedUser.color
         },
         {
           onPeerConnected: handlePeerConnected,
@@ -240,10 +294,17 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
   }, [handleCursorUpdate, handleChatMessage, handlePeerConnected, handlePeerDisconnected]);
 
   /**
-   * Initialize canvas data and WebSocket connection
+   * Initialize canvas data and WebSocket connection - run only once
    */
   useEffect(() => {
+    let isInitialized = false;
+    
     const initialize = async () => {
+      if (isInitialized) return;
+      isInitialized = true;
+      
+      console.log('🚀 Starting one-time canvas initialization...');
+      
       // Initialize canvas data
       await initializeCanvas();
       
@@ -263,7 +324,22 @@ const Canvas: React.FC<CanvasProps> = ({ className = '' }) => {
       webSocketService.disconnect();
       webRTCService.disconnect();
     };
-  }, [initializeCanvas, initializeWebRTC]);
+  }, []); // Empty dependency array - run only once
+
+  /**
+   * Update WebSocket handlers when callbacks change (without reinitializing)
+   */
+  useEffect(() => {
+    console.log('🔄 Updating WebSocket handlers...');
+    webSocketService.updateHandlers({
+      onPixelUpdate: handlePixelUpdate,
+      onReloadCanvas: handleCanvasReload,
+      onConnect: () => handleConnectionStatusChange(ConnectionStatus.CONNECTED),
+      onDisconnect: () => handleConnectionStatusChange(ConnectionStatus.DISCONNECTED),
+      onError: () => handleConnectionStatusChange(ConnectionStatus.ERROR),
+      onReconnecting: () => handleConnectionStatusChange(ConnectionStatus.RECONNECTING),
+    });
+  }, [handlePixelUpdate, handleCanvasReload, handleConnectionStatusChange]);
 
   /**
    * Cursor renderer update loop

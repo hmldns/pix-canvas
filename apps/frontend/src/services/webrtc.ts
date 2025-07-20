@@ -10,6 +10,7 @@ export interface WebRTCConfig {
   roomId: string;
   userId: string;
   nickname: string;
+  userColor?: string;
 }
 
 export interface PeerConnection {
@@ -114,7 +115,7 @@ export class WebRTCService {
     console.log('✅ WebRTC service disconnected');
   }
 
-  public sendCursorUpdate(x: number, y: number): void {
+  public sendCursorUpdate(x: number, y: number, userColor?: string): void {
     if (!this.config) return;
 
     const cursorData: CursorUpdateData = {
@@ -122,7 +123,7 @@ export class WebRTCService {
       nickname: this.config.nickname,
       x,
       y,
-      color: '#3B82F6' // Blue cursor color
+      color: userColor || '#3B82F6' // Use provided color or fallback to blue
     };
 
     this.broadcastToDataChannel('cursor-update', cursorData, 'cursor');
@@ -135,7 +136,8 @@ export class WebRTCService {
       userId: this.config.userId,
       nickname: this.config.nickname,
       message,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      color: this.config.userColor
     };
 
     this.broadcastToDataChannel('chat-message', chatData, 'chat');
