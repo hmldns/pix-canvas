@@ -163,7 +163,7 @@ export class InputController {
     const zoomFactor = event.deltaY > 0 ? 0.95 : 1.05; // Smoother zoom
     const currentScale = canvasContainer.scale.x;
     // Min zoom: 4px per pixel coordinate, Max zoom: 100px per pixel coordinate
-    const minScale = 4;  // Maximum zoom out (pixels appear as 4px squares)
+    const minScale = 0.25;  // Maximum zoom out (pixels appear as 4px squares)
     const maxScale = 100; // Maximum zoom in (pixels appear as 100px squares)
     const newScale = Math.max(minScale, Math.min(maxScale, currentScale * zoomFactor));
 
