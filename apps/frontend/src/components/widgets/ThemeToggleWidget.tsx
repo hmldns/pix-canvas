@@ -1,11 +1,13 @@
 import React from 'react';
 import { useTheme } from '@contexts/ThemeContext';
+import { useMobilePanel } from '@contexts/MobilePanelContext';
 
 const ThemeToggleWidget: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  const { isMobile } = useMobilePanel();
 
   return (
-    <div className="absolute top-4 right-80 z-10">
+    <div className={`absolute z-10 ${isMobile ? 'top-4 right-16' : 'top-4 right-80'}`}>
       <button
         onClick={toggleTheme}
         className="

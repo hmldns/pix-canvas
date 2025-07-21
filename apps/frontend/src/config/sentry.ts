@@ -1,13 +1,15 @@
 import * as Sentry from '@sentry/react';
+import { config } from './config';
 
 /**
  * Initialize Sentry error tracking for the frontend application
  */
 export function initializeSentry(): void {
-  const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+  // Priority: 1) Window object, 2) Environment variable
+  const sentryDsn = config.sentry.dsn;
   
   if (!sentryDsn) {
-    console.warn('⚠️ VITE_SENTRY_DSN not provided - Sentry error tracking disabled');
+    console.warn('⚠️ Sentry DSN not provided - Sentry error tracking disabled');
     return;
   }
 
@@ -19,7 +21,7 @@ export function initializeSentry(): void {
     tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0,
     
     // Release tracking
-    release: import.meta.env.VITE_APP_VERSION || '1.0.0',
+    release: config.sentry.release,
     
     // Custom error filtering
     beforeSend(event, hint) {

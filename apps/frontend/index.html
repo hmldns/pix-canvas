@@ -7,6 +7,15 @@
     <title>Infinite Pixel Canvas</title>
     <meta name="description" content="A real-time collaborative pixel canvas where users can draw and see each other's creations in real-time." />
     
+    <script>
+      window.runtimeConfig = {
+        VITE_API_BASE_URL: '__VITE_API_BASE_URL__',
+        VITE_WS_URL: '__VITE_WS_URL__',
+        VITE_SIGNALING_URL: '__VITE_SIGNALING_URL__',
+        VITE_SENTRY_DSN: '__VITE_SENTRY_DSN__'
+      };
+    </script>
+    
     <!-- Preload fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

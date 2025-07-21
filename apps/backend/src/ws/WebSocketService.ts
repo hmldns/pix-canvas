@@ -28,7 +28,7 @@ interface ConnectedClient {
 export class WebSocketService {
   private wss: WebSocketServer;
   private clients: Map<string, ConnectedClient> = new Map();
-  private pingInterval: NodeJS.Timer | null = null;
+  private pingInterval: NodeJS.Timeout | null = null;
   private broadcastService: BroadcastService;
 
   constructor(server: Server) {
@@ -142,8 +142,8 @@ export class WebSocketService {
         break;
       
       default:
-        console.warn(`⚠️ Unknown message type from ${clientId}:`, message.type);
-        this.sendErrorMessage(client.socket, `Unknown message type: ${message.type}`);
+        console.warn(`⚠️ Unknown message type from ${clientId}:`, (message as any).type);
+        this.sendErrorMessage(client.socket, `Unknown message type: ${(message as any).type}`);
     }
   }
 
@@ -201,7 +201,7 @@ export class WebSocketService {
       captureException(error as Error, { 
         context: 'pixel_processing',
         clientId,
-        pixelData: { x, y, color }
+        pixelData: message.payload
       });
       this.sendErrorMessage(client.socket, 'Failed to save pixel');
     }

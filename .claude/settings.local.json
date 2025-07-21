@@ -11,7 +11,16 @@
       "Bash(npm run dev:*)",
       "Bash(ls:*)",
       "Bash(npm test:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(make:*)",
+      "Bash(docker compose:*)",
+      "Bash(grep:*)",
+      "Bash(VITE_API_BASE_URL=https://api.example.com VITE_WS_URL=wss://api.example.com/ws npm run build)",
+      "Bash(VITE_SENTRY_DSN=test-dsn npm run build --workspace=apps/frontend)",
+      "Bash(mv:*)",
+      "Bash(rm:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

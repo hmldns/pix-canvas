@@ -5,6 +5,7 @@ import {
   ApiError,
   PixelData,
 } from '@libs/common-types';
+import { config as appConfig } from '@/config/config';
 
 export interface ApiConfig {
   baseUrl: string;
@@ -15,8 +16,17 @@ export class ApiService {
   private config: ApiConfig;
 
   constructor(config: Partial<ApiConfig> = {}) {
+    // Priority: 1) Explicit config, 2) Window object, 3) Smart runtime detection
+    let baseUrl = appConfig.api.baseUrl;
+    
+    if (!baseUrl) {
+      // Fallback to runtime detection if no environment variable is set
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      baseUrl = isLocalhost ? 'http://localhost:3001' : '/api';
+    }
+    
     this.config = {
-      baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',
+      baseUrl,
       timeout: 10000,
       ...config,
     };

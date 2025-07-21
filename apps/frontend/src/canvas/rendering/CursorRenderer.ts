@@ -7,6 +7,7 @@ export interface CursorDisplayObject {
   container: PIXI.Container;
   graphics: PIXI.Graphics;
   label: PIXI.Text;
+  labelBackground: PIXI.Graphics;
   lastUpdate: number;
 }
 
@@ -27,26 +28,25 @@ export class CursorRenderer {
 
   constructor(parentContainer: PIXI.Container, config: Partial<CursorRendererConfig> = {}) {
     this.config = {
-      maxCursorAge: 10000, // 10 seconds (longer persistence)
+      maxCursorAge: 1000000, // 10 seconds (longer persistence)
       cursorSize: 1.0, // 1x1 pixel frame
-      labelOffset: 0.8, // Closer to pixel frame
+      labelOffset: 1.0, // Closer to cursor
       fadeOutDuration: 2000, // 2 second fade (slower fade)
       ...config
     };
 
-    // Create text style for cursor labels
+    // Create text style for cursor labels (color will be set per cursor)
+    // Render at high resolution then scale down for crisp text
+    const baseResolution = 2;
     this.textStyle = new PIXI.TextStyle({
-      fontFamily: 'Inter, sans-serif',
-      fontSize: 0.6, // Small size in canvas units
-      fill: '#FFFFFF',
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+      fontSize: 24 * baseResolution, // High-res font size
+      fill: '#FFFFFF', // Default, will be overridden per cursor
       stroke: '#000000',
-      strokeThickness: 0.1,
-      dropShadow: true,
-      dropShadowColor: '#000000',
-      dropShadowBlur: 0.2,
-      dropShadowDistance: 0.1,
+      strokeThickness: 0.15 * baseResolution,
       wordWrap: false,
-      align: 'center'
+      align: 'center',
+      resolution: baseResolution // Higher resolution for sharper text
     });
 
     // Create dedicated container for cursors
@@ -86,6 +86,8 @@ export class CursorRenderer {
     // Update label if nickname changed
     if (cursor.label.text !== nickname) {
       cursor.label.text = nickname;
+      // Redraw background when text changes
+      this.drawLabelBackground(cursor.labelBackground, cursor.label);
     }
 
     // Update cursor color if changed
@@ -95,7 +97,7 @@ export class CursorRenderer {
     cursor.container.visible = true;
     cursor.container.alpha = 1;
 
-    console.log(`🖱️ Updated cursor for ${nickname} at (${x}, ${y}), total cursors: ${this.cursors.size}`);
+    console.log(`🖱️ Updated cursor for ${nickname} at (${x}, ${y}), visible: ${cursor.container.visible}, alpha: ${cursor.container.alpha}, total cursors: ${this.cursors.size}`);
   }
 
   /**
@@ -152,13 +154,22 @@ export class CursorRenderer {
     // Draw cursor shape
     this.drawCursor(graphics, color);
 
-    // Setup label
+    // Create label background
+    const labelBackground = new PIXI.Graphics();
+    
+    // Setup label with user color
     label.text = nickname;
+    label.style.fill = color; // Use user's color for text
     label.anchor.set(0.5, 1); // Center horizontally, bottom vertically
     label.position.set(0.5, -this.config.labelOffset); // Position above pixel frame center
+    label.scale.set(1 / 20); // Scale down even more for smaller text
 
-    // Add to container
+    // Draw background after setting text to get proper bounds
+    this.drawLabelBackground(labelBackground, label);
+
+    // Add to container in correct order (background first, then text)
     container.addChild(graphics);
+    container.addChild(labelBackground);
     container.addChild(label);
 
     // Add to cursor layer
@@ -169,9 +180,12 @@ export class CursorRenderer {
       container,
       graphics,
       label,
+      labelBackground,
       lastUpdate: Date.now()
     };
 
+    console.log(`✨ Created cursor for ${nickname} with color ${color}, container visible: ${container.visible}`);
+    
     return cursor;
   }
 
@@ -195,11 +209,71 @@ export class CursorRenderer {
   }
 
   /**
+   * Draw label background with theme-aware styling
+   */
+  private drawLabelBackground(background: PIXI.Graphics, label: PIXI.Text): void {
+    background.clear();
+    
+    try {
+      // Get text bounds - fallback for compatibility
+      const bounds = label.getBounds()?.rectangle || label.getLocalBounds();
+      const verticalPadding = 0.1;
+      const horizontalPadding = 0.25; // More padding on left and right
+      
+      // Position background relative to label
+      background.position.copyFrom(label.position);
+      
+      // Calculate scaled dimensions (accounting for label scale)
+      const scaledWidth = bounds.width * label.scale.x;
+      const scaledHeight = bounds.height * label.scale.y;
+      
+      // Ensure we have valid dimensions
+      if (scaledWidth <= 0 || scaledHeight <= 0) {
+        console.warn('Invalid text bounds for background drawing');
+        return;
+      }
+      
+      // Draw semi-transparent background with rounded corners
+      background.beginFill(0x000000, 0.7); // Dark background with 70% opacity
+      background.drawRoundedRect(
+        -scaledWidth / 2 - horizontalPadding,
+        -scaledHeight - verticalPadding,
+        scaledWidth + horizontalPadding * 2,
+        scaledHeight + verticalPadding * 2,
+        0.15 // Rounded corners
+      );
+      background.endFill();
+      
+      // Add subtle border
+      background.lineStyle(0.05, 0xFFFFFF, 0.3);
+      background.drawRoundedRect(
+        -scaledWidth / 2 - horizontalPadding,
+        -scaledHeight - verticalPadding,
+        scaledWidth + horizontalPadding * 2,
+        scaledHeight + verticalPadding * 2,
+        0.15
+      );
+    } catch (error) {
+      console.error('Error drawing label background:', error);
+      // Draw a simple fallback background
+      background.beginFill(0x000000, 0.7);
+      background.drawRoundedRect(-1, -0.5, 2, 1, 0.15);
+      background.endFill();
+    }
+  }
+
+  /**
    * Update cursor color
    */
   private updateCursorColor(cursor: CursorDisplayObject, color: string): void {
     // Redraw the cursor with new color
     this.drawCursor(cursor.graphics, color);
+    
+    // Update label color
+    cursor.label.style.fill = color;
+    
+    // Redraw background if text changed
+    this.drawLabelBackground(cursor.labelBackground, cursor.label);
   }
 
   /**
@@ -212,6 +286,9 @@ export class CursorRenderer {
     // Return objects to pools
     this.graphicsPool.release(cursor.graphics);
     this.textPool.release(cursor.label);
+
+    // Destroy the label background (not pooled)
+    cursor.labelBackground.destroy();
 
     // Destroy the container
     cursor.container.destroy();

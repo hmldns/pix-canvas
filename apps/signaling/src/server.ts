@@ -1,7 +1,13 @@
 import { SignalingApp } from './app';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load environment variables
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 // Configuration
-const PORT = process.env.SIGNALING_PORT || 3003;
+// Use PORT in Docker containers, SIGNALING_PORT in development
+const PORT = process.env.PORT || process.env.SIGNALING_PORT || 3002;
 const HOST = process.env.SIGNALING_HOST || 'localhost';
 
 // Create and start the signaling server

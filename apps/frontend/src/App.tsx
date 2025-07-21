@@ -7,6 +7,7 @@ import ColorPaletteWidget from '@components/widgets/ColorPaletteWidget';
 import ThemeToggleWidget from '@components/widgets/ThemeToggleWidget';
 import VolumeControlWidget from '@components/widgets/VolumeControlWidget';
 import DebugPanel from '@components/widgets/DebugPanel';
+import { MobilePanelProvider } from '@contexts/MobilePanelContext';
 
 const App: React.FC = () => {
   const canvasRef = useRef<any>(null);
@@ -24,29 +25,31 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-gray-100 dark:bg-gray-900 relative">
-      {/* Main Canvas - PixiJS rendering area */}
-      <Canvas ref={canvasRef} />
-      
-      {/* Floating UI Widgets */}
-      <ThemeToggleWidget />
-      <ConnectionStatusWidget />
-      <VolumeControlWidget
-        onVolumeChange={handleVolumeChange}
-        onToggleEnabled={handleSoundToggle}
-      />
-      <UserListWidget />
-      <ChatWidget />
-      <ColorPaletteWidget />
-      
-      {/* Debug Panel - only visible in development or when enabled */}
-      <DebugPanel
-        effectsManager={canvasRef.current?.getEffectsManager?.()}
-        soundManager={canvasRef.current?.getSoundManager?.()}
-        webSocketService={canvasRef.current?.getWebSocketService?.()}
-      />
-      
-    </div>
+    <MobilePanelProvider>
+      <div className="w-full h-full bg-gray-100 dark:bg-gray-900 relative">
+        {/* Main Canvas - PixiJS rendering area */}
+        <Canvas ref={canvasRef} />
+        
+        {/* Floating UI Widgets */}
+        <ThemeToggleWidget />
+        <ConnectionStatusWidget />
+        <VolumeControlWidget
+          onVolumeChange={handleVolumeChange}
+          onToggleEnabled={handleSoundToggle}
+        />
+        <UserListWidget />
+        <ChatWidget />
+        <ColorPaletteWidget />
+        
+        {/* Debug Panel - only visible in development or when enabled */}
+        <DebugPanel
+          effectsManager={canvasRef.current?.getEffectsManager?.()}
+          soundManager={canvasRef.current?.getSoundManager?.()}
+          webSocketService={canvasRef.current?.getWebSocketService?.()}
+        />
+        
+      </div>
+    </MobilePanelProvider>
   );
 };
 

@@ -1,11 +1,11 @@
 import express from 'express';
-import { createServer } from 'http';
+import { createServer, Server } from 'http';
 import cors from 'cors';
 import { SignalingService } from './ws/SignalingService';
 
 export class SignalingApp {
   private app: express.Application;
-  private server: ReturnType<typeof createServer>;
+  private server: Server;
   private signalingService: SignalingService;
 
   constructor() {
@@ -75,7 +75,7 @@ export class SignalingApp {
     });
   }
 
-  public getServer() {
+  public getServer(): Server {
     return this.server;
   }
 

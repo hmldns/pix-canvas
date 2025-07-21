@@ -12,7 +12,7 @@ export function initializeSentry(): void {
 
   Sentry.init({
     dsn: config.sentryDsn,
-    environment: config.nodeEnv,
+    environment: config.sentryEnvironment,
     
     // Performance monitoring
     tracesSampleRate: config.nodeEnv === 'production' ? 0.1 : 1.0,

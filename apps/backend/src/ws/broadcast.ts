@@ -31,7 +31,7 @@ export interface BroadcastClient {
 export class BroadcastService {
   private updateQueue: PixelUpdate[] = [];
   private clients: Map<string, BroadcastClient> = new Map();
-  private broadcastInterval: NodeJS.Timer | null = null;
+  private broadcastInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
   
   // Rate limiting: 10Hz = 100ms intervals

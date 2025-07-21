@@ -1,0 +1,85 @@
+services:
+  # MongoDB database service
+  mongodb:
+    image: mongo:7
+    container_name: pix-canvas-mongo
+    restart: unless-stopped
+
+    ports:
+      - "${MONGO_PORT}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - pixcanvas-network
+
+  # Backend service
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: pix-canvas-backend
+    restart: unless-stopped
+    environment:
+      - PORT=${BACKEND_PORT}  # Map BACKEND_PORT to PORT
+      - MONGODB_URI=${MONGODB_URI}
+    depends_on:
+      - mongodb
+    networks:
+      - pixcanvas-network
+
+  # Signaling service for WebRTC
+  signaling:
+    build:
+      context: .
+      dockerfile: signaling.Dockerfile
+    container_name: pix-canvas-signaling
+    restart: unless-stopped
+    environment:
+      - PORT=${SIGNALING_PORT}  # Map SIGNALING_PORT to PORT
+    networks:
+      - pixcanvas-network
+
+  # Frontend service with lightweight static file server
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    container_name: pix-canvas-frontend
+    restart: unless-stopped
+    environment:
+      - PORT=${FRONTEND_PORT}
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+      - VITE_WS_URL=${VITE_WS_URL}
+      - VITE_SIGNALING_URL=${VITE_SIGNALING_URL}
+      - VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+      - VITE_DEBUG_PANELS=${VITE_DEBUG_PANELS}
+    networks:
+      - pixcanvas-network
+
+  # Caddy reverse proxy
+  caddy:
+    image: caddy:2
+    container_name: pix-canvas-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+      - signaling
+    networks:
+      - pixcanvas-network
+
+networks:
+  pixcanvas-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  caddy_data:
+  caddy_config:

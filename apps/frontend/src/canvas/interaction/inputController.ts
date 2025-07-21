@@ -39,6 +39,12 @@ export class InputController {
   private lastCursorPosition = { x: 0, y: 0 };
   private hasValidCursorPosition = false;
 
+  // Touch/pinch zoom state
+  private activeTouches = new Map<number, { x: number; y: number }>();
+  private lastPinchDistance = 0;
+  private lastPinchCenter = { x: 0, y: 0 };
+  private isPinching = false;
+
   constructor(
     renderer: CanvasRenderer,
     webSocketService: WebSocketService,
@@ -80,6 +86,14 @@ export class InputController {
     // Mouse wheel for zooming
     if (this.config.enableZooming) {
       canvas.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
+    }
+
+    // Touch events for mobile pinch zoom
+    if (this.config.enableZooming) {
+      canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+      canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+      canvas.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+      canvas.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false });
     }
 
     // Keyboard events for mode switching
@@ -192,6 +206,160 @@ export class InputController {
       );
 
       console.log(`🔍 Zoom: ${newScale.toFixed(1)}x (${newScale.toFixed(1)}px per pixel)`);
+    }
+  }
+
+  /**
+   * Handle touch start for mobile pinch zoom
+   */
+  private handleTouchStart(event: TouchEvent): void {
+    // Update active touches
+    for (let i = 0; i < event.touches.length; i++) {
+      const touch = event.touches[i];
+      this.activeTouches.set(touch.identifier, {
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+
+    // If we have exactly 2 touches, start pinch zoom
+    if (this.activeTouches.size === 2) {
+      event.preventDefault(); // Prevent default pinch behavior
+      
+      const touches = Array.from(this.activeTouches.values());
+      const touch1 = touches[0];
+      const touch2 = touches[1];
+      
+      // Calculate initial pinch distance and center
+      this.lastPinchDistance = Math.sqrt(
+        Math.pow(touch2.x - touch1.x, 2) + Math.pow(touch2.y - touch1.y, 2)
+      );
+      this.lastPinchCenter = {
+        x: (touch1.x + touch2.x) / 2,
+        y: (touch1.y + touch2.y) / 2
+      };
+      
+      this.isPinching = true;
+      console.log('📱 Pinch zoom started');
+    }
+  }
+
+  /**
+   * Handle touch move for mobile pinch zoom
+   */
+  private handleTouchMove(event: TouchEvent): void {
+    // Update active touches
+    for (let i = 0; i < event.touches.length; i++) {
+      const touch = event.touches[i];
+      this.activeTouches.set(touch.identifier, {
+        x: touch.clientX,
+        y: touch.clientY
+      });
+    }
+
+    // Handle pinch zoom with exactly 2 touches
+    if (this.activeTouches.size === 2 && this.isPinching && this.lastPinchDistance > 0) {
+      event.preventDefault(); // Prevent default pinch behavior
+      
+      const touches = Array.from(this.activeTouches.values());
+      const touch1 = touches[0];
+      const touch2 = touches[1];
+      
+      // Calculate current pinch distance and center
+      const currentDistance = Math.sqrt(
+        Math.pow(touch2.x - touch1.x, 2) + Math.pow(touch2.y - touch1.y, 2)
+      );
+      const currentCenter = {
+        x: (touch1.x + touch2.x) / 2,
+        y: (touch1.y + touch2.y) / 2
+      };
+      
+      // Calculate scale factor based on distance change (simple approach)
+      const scaleFactor = currentDistance / this.lastPinchDistance;
+      
+      // Only proceed if scale factor is reasonable (avoid extreme jumps)
+      if (scaleFactor > 0.5 && scaleFactor < 2.0) {
+        this.handlePinchZoom(scaleFactor, currentCenter);
+      }
+      
+      // Update tracking values
+      this.lastPinchDistance = currentDistance;
+      this.lastPinchCenter = currentCenter;
+    }
+  }
+
+  /**
+   * Handle touch end/cancel for mobile pinch zoom
+   */
+  private handleTouchEnd(event: TouchEvent): void {
+    // Remove ended touches
+    const currentTouchIds = new Set();
+    for (let i = 0; i < event.touches.length; i++) {
+      currentTouchIds.add(event.touches[i].identifier);
+    }
+    
+    // Remove touches that are no longer active
+    for (const touchId of this.activeTouches.keys()) {
+      if (!currentTouchIds.has(touchId)) {
+        this.activeTouches.delete(touchId);
+      }
+    }
+    
+    // Reset pinch state if we don't have 2 touches anymore
+    if (this.activeTouches.size < 2) {
+      this.lastPinchDistance = 0;
+      this.isPinching = false;
+      console.log('📱 Pinch zoom ended');
+    }
+  }
+
+  /**
+   * Handle pinch zoom with scale factor and center point
+   */
+  private handlePinchZoom(scaleFactor: number, centerPoint: { x: number; y: number }): void {
+    const canvasContainer = this.renderer.canvasContainer;
+    if (!canvasContainer) return;
+
+    const currentScale = canvasContainer.scale.x;
+    const minScale = 0.25;  // Maximum zoom out
+    const maxScale = 100;   // Maximum zoom in
+    
+    // Calculate new scale (simple multiplication)
+    const newScale = Math.max(minScale, Math.min(maxScale, currentScale * scaleFactor));
+
+    if (newScale !== currentScale) {
+      // Get canvas element bounds for proper coordinate conversion
+      const canvas = this.renderer.application.view as HTMLCanvasElement;
+      const rect = canvas.getBoundingClientRect();
+      
+      // Convert center point to canvas coordinates
+      const canvasCenter = {
+        x: centerPoint.x - rect.left,
+        y: centerPoint.y - rect.top
+      };
+      
+      // Calculate world position before zoom
+      const worldPosBeforeZoom = {
+        x: (canvasCenter.x - canvasContainer.x) / currentScale,
+        y: (canvasCenter.y - canvasContainer.y) / currentScale
+      };
+      
+      // Apply new scale
+      canvasContainer.scale.set(newScale);
+      
+      // Calculate new position to keep the center point stable
+      canvasContainer.x = canvasCenter.x - worldPosBeforeZoom.x * newScale;
+      canvasContainer.y = canvasCenter.y - worldPosBeforeZoom.y * newScale;
+
+      // Update grid for new scale
+      this.renderer.updateGrid(newScale);
+
+      // Notify callbacks
+      this.callbacks.onViewportChange?.(
+        newScale,
+        canvasContainer.x,
+        canvasContainer.y
+      );
     }
   }
 
@@ -483,6 +651,13 @@ export class InputController {
     // Remove event listeners
     canvas.removeEventListener('wheel', this.handleWheel.bind(this));
     canvas.removeEventListener('contextmenu', (e) => e.preventDefault());
+    
+    // Remove touch event listeners
+    canvas.removeEventListener('touchstart', this.handleTouchStart.bind(this));
+    canvas.removeEventListener('touchmove', this.handleTouchMove.bind(this));
+    canvas.removeEventListener('touchend', this.handleTouchEnd.bind(this));
+    canvas.removeEventListener('touchcancel', this.handleTouchEnd.bind(this));
+    
     window.removeEventListener('keydown', this.handleKeyDown.bind(this));
     window.removeEventListener('keyup', this.handleKeyUp.bind(this));
     
@@ -491,6 +666,9 @@ export class InputController {
       window.removeEventListener('focus', this.handleWindowFocus.bind(this));
       window.removeEventListener('blur', this.handleWindowBlur.bind(this));
     }
+
+    // Clear active touches
+    this.activeTouches.clear();
 
     // Remove PixiJS event listeners
     this.renderer.stage.removeAllListeners();

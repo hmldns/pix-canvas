@@ -1,5 +1,6 @@
 import React from 'react';
 import BaseWidget from './BaseWidget';
+import MobileWidget from './MobileWidget';
 import { useUserContext, ConnectedUser } from '@contexts/UserContext';
 
 const UserListWidget: React.FC = () => {
@@ -64,55 +65,75 @@ const UserListWidget: React.FC = () => {
     </div>
   );
 
-  return (
-    <BaseWidget 
-      title={`Users (${onlineCount} online)`}
-      position="top-right"
-      defaultCollapsed={false}
-    >
-      <div className="space-y-4 max-h-64 overflow-y-auto">
-        {/* Online Users */}
-        {onlineUsers.length > 0 && (
-          <div>
-            <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
-              Online ({onlineUsers.length})
-            </h4>
-            <div className="space-y-1">
-              {onlineUsers.map(user => (
-                <UserItem key={user.id} user={user} />
-              ))}
-            </div>
-          </div>
-        )}
+  const usersIcon = (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+    </svg>
+  );
 
-        {/* Offline Users */}
-        {offlineUsers.length > 0 && (
-          <div>
-            <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
-              Recently Offline
-            </h4>
-            <div className="space-y-1">
-              {offlineUsers.slice(0, 5).map(user => (
-                <UserItem key={user.id} user={user} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {users.length === 0 && (
-          <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
-            No users online
-          </div>
-        )}
-
-        {/* Total Stats */}
-        <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            {users.length} total user{users.length !== 1 ? 's' : ''}
+  const widgetContent = (
+    <div className="space-y-4 max-h-64 overflow-y-auto">
+      {/* Online Users */}
+      {onlineUsers.length > 0 && (
+        <div>
+          <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
+            Online ({onlineUsers.length})
+          </h4>
+          <div className="space-y-1">
+            {onlineUsers.map(user => (
+              <UserItem key={user.id} user={user} />
+            ))}
           </div>
         </div>
+      )}
+
+      {/* Offline Users */}
+      {offlineUsers.length > 0 && (
+        <div>
+          <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-2">
+            Recently Offline
+          </h4>
+          <div className="space-y-1">
+            {offlineUsers.slice(0, 5).map(user => (
+              <UserItem key={user.id} user={user} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {users.length === 0 && (
+        <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
+          No users online
+        </div>
+      )}
+
+      {/* Total Stats */}
+      <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+        <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+          {users.length} total user{users.length !== 1 ? 's' : ''}
+        </div>
       </div>
-    </BaseWidget>
+    </div>
+  );
+
+  return (
+    <>
+      <MobileWidget
+        title={`Users (${onlineCount} online)`}
+        panelId="users"
+        icon={usersIcon}
+        position="top-right"
+      >
+        {widgetContent}
+      </MobileWidget>
+      <BaseWidget 
+        title={`Users (${onlineCount} online)`}
+        position="top-right"
+        defaultCollapsed={false}
+      >
+        {widgetContent}
+      </BaseWidget>
+    </>
   );
 };
 

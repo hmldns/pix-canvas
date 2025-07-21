@@ -8,13 +8,16 @@ import { webSocketService, ConnectionStatus } from '@services/websocket';
 import { webRTCService } from '@services/webrtc';
 import { PixelUpdateData, CursorUpdateData, ChatMessageData } from '@libs/common-types';
 import { useTheme } from '@contexts/ThemeContext';
+import { config } from '@/config/config';
 import { useChatContext } from '@contexts/ChatContext';
 import { useUserContext } from '@contexts/UserContext';
 import { useColorContext } from '@contexts/ColorContext';
+import StatusWidget from './widgets/StatusWidget';
 
 interface CanvasProps {
   className?: string;
 }
+
 
 export interface CanvasRef {
   setSoundVolume: (volume: number) => void;
@@ -152,9 +155,9 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
    * Handle connection status changes
    */
   const handleConnectionStatusChange = useCallback((status: ConnectionStatus) => {
+    console.log(`📡 Canvas connection status change: ${connectionStatus} → ${status}`);
     setConnectionStatus(status);
-    console.log(`📡 Connection status: ${status}`);
-  }, []);
+  }, [connectionStatus]);
 
   /**
    * Initialize PixiJS renderer and related systems
@@ -285,9 +288,24 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
       
       console.log('👤 Using existing user for WebRTC:', cachedUser);
       
+      // Priority: 1) Window object, 2) Environment variable, 3) Smart runtime detection
+      let signalingUrl = config.signaling.url;
+      
+      if (!signalingUrl) {
+        // Fallback to runtime detection if no environment variable is set
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isLocalhost) {
+          signalingUrl = 'http://localhost:3002'; // Fixed port to match signaling service
+        } else {
+          const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+          signalingUrl = `${protocol}//${window.location.host}`;
+        }
+      }
+      
       await webRTCService.connect(
         {
-          signalingUrl: 'http://localhost:3003',
+          signalingUrl,
           roomId: 'canvas-room',
           userId: cachedUser.userId,
           nickname: cachedUser.nickname,
@@ -327,8 +345,35 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
       // Initialize canvas data
       await initializeCanvas();
       
-      // Connect WebSocket
+      // Set up WebSocket handlers BEFORE connecting
+      webSocketService.updateHandlers({
+        onPixelUpdate: handlePixelUpdate,
+        onReloadCanvas: handleCanvasReload,
+        onConnect: () => {
+          console.log('🟢 WebSocket onConnect handler called');
+          handleConnectionStatusChange(ConnectionStatus.CONNECTED);
+        },
+        onDisconnect: () => {
+          console.log('🔴 WebSocket onDisconnect handler called');
+          handleConnectionStatusChange(ConnectionStatus.DISCONNECTED);
+        },
+        onError: () => {
+          console.log('❌ WebSocket onError handler called');
+          handleConnectionStatusChange(ConnectionStatus.ERROR);
+        },
+        onReconnecting: () => {
+          console.log('🔄 WebSocket onReconnecting handler called');
+          handleConnectionStatusChange(ConnectionStatus.RECONNECTING);
+        },
+      });
+      
+      // Connect WebSocket (this will set status to CONNECTING automatically)
       webSocketService.connect();
+      
+      // Get the current status from WebSocket service instead of manually setting it
+      const currentStatus = webSocketService.getStatus();
+      setConnectionStatus(currentStatus);
+      console.log('🔌 After connect(), WebSocket status is:', currentStatus);
       
       // Initialize WebRTC after a short delay to ensure canvas is ready
       setTimeout(() => {
@@ -347,17 +392,21 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
 
   /**
    * Update WebSocket handlers when callbacks change (without reinitializing)
+   * Note: Initial handlers are set up in the initialization effect above
    */
   useEffect(() => {
-    console.log('🔄 Updating WebSocket handlers...');
-    webSocketService.updateHandlers({
-      onPixelUpdate: handlePixelUpdate,
-      onReloadCanvas: handleCanvasReload,
-      onConnect: () => handleConnectionStatusChange(ConnectionStatus.CONNECTED),
-      onDisconnect: () => handleConnectionStatusChange(ConnectionStatus.DISCONNECTED),
-      onError: () => handleConnectionStatusChange(ConnectionStatus.ERROR),
-      onReconnecting: () => handleConnectionStatusChange(ConnectionStatus.RECONNECTING),
-    });
+    // Only update handlers if WebSocket is already connected/initialized
+    if (webSocketService.getStatus() !== ConnectionStatus.DISCONNECTED) {
+      console.log('🔄 Updating WebSocket handlers...');
+      webSocketService.updateHandlers({
+        onPixelUpdate: handlePixelUpdate,
+        onReloadCanvas: handleCanvasReload,
+        onConnect: () => handleConnectionStatusChange(ConnectionStatus.CONNECTED),
+        onDisconnect: () => handleConnectionStatusChange(ConnectionStatus.DISCONNECTED),
+        onError: () => handleConnectionStatusChange(ConnectionStatus.ERROR),
+        onReconnecting: () => handleConnectionStatusChange(ConnectionStatus.RECONNECTING),
+      });
+    }
   }, [handlePixelUpdate, handleCanvasReload, handleConnectionStatusChange]);
 
   /**
@@ -434,6 +483,8 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
     };
   }, []);
 
+  const showDebugPanels = config.debug.showPanels;
+
   return (
     <div className="relative w-full h-full">
       {/* Main canvas container */}
@@ -476,46 +527,21 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
       )}
 
       {/* Status indicators */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg z-30">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${
-              connectionStatus === ConnectionStatus.CONNECTED ? 'bg-green-500' :
-              connectionStatus === ConnectionStatus.CONNECTING ? 'bg-yellow-500' :
-              connectionStatus === ConnectionStatus.RECONNECTING ? 'bg-orange-500' :
-              'bg-red-500'
-            }`}></div>
-            <span className="capitalize">{connectionStatus}</span>
-          </div>
-          <div>Pixels: {pixelCount.toLocaleString()}</div>
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${webRTCConnected ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-            <span>WebRTC: {webRTCConnected ? 'Connected' : 'Disconnected'}</span>
-          </div>
-          <div>Peers: {connectedPeers.length}</div>
-          <div className="flex items-center space-x-2">
-            <span>Color:</span>
-            <div 
-              className="w-4 h-4 rounded border border-gray-300" 
-              style={{ backgroundColor: selectedColor }}
-            ></div>
-            <span className="font-mono text-xs">{selectedColor}</span>
-          </div>
-          <div>
-            <button 
-              onClick={() => {
-                if (rendererRef.current) {
-                  rendererRef.current.resumeAudio();
-                  rendererRef.current.playPixelSound(selectedColor, true); // true = own pixel
-                }
-              }}
-              className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-            >
-              Test Sound
-            </button>
-          </div>
-        </div>
-      </div>
+      {showDebugPanels && (
+        <StatusWidget
+          connectionStatus={connectionStatus}
+          pixelCount={pixelCount}
+          webRTCConnected={webRTCConnected}
+          connectedPeers={connectedPeers}
+          selectedColor={selectedColor}
+          onTestSound={() => {
+            if (rendererRef.current) {
+              rendererRef.current.resumeAudio();
+              rendererRef.current.playPixelSound(selectedColor, true); // true = own pixel
+            }
+          }}
+        />
+      )}
     </div>
   );
 });

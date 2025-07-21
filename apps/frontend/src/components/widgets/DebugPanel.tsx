@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { addBreadcrumb } from '../../config/sentry';
+import { config } from '@/config/config';
 
 interface DebugPanelProps {
   effectsManager?: any; // PixelEffectManager instance
@@ -35,6 +36,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({
     import.meta.env.MODE === 'development' || 
     localStorage.getItem('debug-mode') === 'true'
   );
+
+  const showDebugPanels = config.debug.showPanels;
 
   // Keyboard shortcut to toggle debug panel (Ctrl/Cmd + Shift + D)
   useEffect(() => {
@@ -111,6 +114,10 @@ const DebugPanel: React.FC<DebugPanelProps> = ({
     localStorage.setItem('debug-mode', newDebugMode.toString());
     addBreadcrumb('Debug mode toggled', 'debug', { enabled: newDebugMode });
   };
+
+  if (!showDebugPanels) {
+    return null;
+  }
 
   if (!isVisible) {
     return (

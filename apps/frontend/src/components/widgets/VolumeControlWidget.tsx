@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import BaseWidget from './BaseWidget';
+import MobileWidget from './MobileWidget';
+import { useMobilePanel } from '@contexts/MobilePanelContext';
 
 interface VolumeControlWidgetProps {
   onVolumeChange: (volume: number) => void;
@@ -17,6 +19,7 @@ const VolumeControlWidget: React.FC<VolumeControlWidgetProps> = ({
   const [volume, setVolume] = useState(initialVolume);
   const [enabled, setEnabled] = useState(initialEnabled);
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const { isMobile } = useMobilePanel();
 
   useEffect(() => {
     onVolumeChange(volume);
@@ -42,6 +45,12 @@ const VolumeControlWidget: React.FC<VolumeControlWidgetProps> = ({
     if (volume < 0.7) return '🔊';
     return '🔊';
   };
+
+  const volumeIcon = (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.816L4.914 14H2a1 1 0 01-1-1V7a1 1 0 011-1h2.914l3.469-2.816a1 1 0 011.617.816zM16 10a3 3 0 00-3-3v6a3 3 0 003-3z" clipRule="evenodd" />
+    </svg>
+  );
 
   const content = (
     <div className="space-y-3">
@@ -114,73 +123,87 @@ const VolumeControlWidget: React.FC<VolumeControlWidgetProps> = ({
   );
 
   return (
-    <div className="absolute top-4 left-72 z-10">
-      <div className="
-        bg-white dark:bg-gray-800 
-        border border-gray-200 dark:border-gray-700
-        rounded-lg shadow-lg
-        min-w-64 max-w-sm
-        transition-all duration-200 ease-in-out
-      ">
-        {/* Widget Header */}
-        <div 
-          className="
-            flex items-center justify-between
-            px-4 py-3
-            bg-gray-50 dark:bg-gray-700
-            border-b border-gray-200 dark:border-gray-700
-            rounded-t-lg
-            cursor-pointer
-            hover:bg-gray-100 dark:hover:bg-gray-600
-            transition-colors duration-150
-          "
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          <h3 className="
-            text-sm font-medium
-            text-gray-900 dark:text-gray-100
-            select-none
-          ">
-            Audio
-          </h3>
-          
-          {/* Collapse/Expand Icon */}
-          <button className="
-            text-gray-500 dark:text-gray-400
-            hover:text-gray-700 dark:hover:text-gray-200
-            transition-colors duration-150
-            p-1
-          ">
-            <svg 
-              className={`
-                w-4 h-4 transition-transform duration-200
-                ${isCollapsed ? 'rotate-180' : ''}
-              `}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M19 9l-7 7-7-7" 
-              />
-            </svg>
-          </button>
-        </div>
+    <>
+      <MobileWidget
+        title="Audio"
+        panelId="volume"
+        icon={volumeIcon}
+        position="top-left"
+      >
+        {content}
+      </MobileWidget>
+      
+      {/* Desktop volume widget - hidden on mobile */}
+      {!isMobile && (
+        <div className="absolute top-4 left-72 z-10">
+        <div className="
+          bg-white dark:bg-gray-800 
+          border border-gray-200 dark:border-gray-700
+          rounded-lg shadow-lg
+          min-w-64 max-w-sm
+          transition-all duration-200 ease-in-out
+        ">
+          {/* Widget Header */}
+          <div 
+            className="
+              flex items-center justify-between
+              px-4 py-3
+              bg-gray-50 dark:bg-gray-700
+              border-b border-gray-200 dark:border-gray-700
+              rounded-t-lg
+              cursor-pointer
+              hover:bg-gray-100 dark:hover:bg-gray-600
+              transition-colors duration-150
+            "
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            <h3 className="
+              text-sm font-medium
+              text-gray-900 dark:text-gray-100
+              select-none
+            ">
+              Audio
+            </h3>
+            
+            {/* Collapse/Expand Icon */}
+            <button className="
+              text-gray-500 dark:text-gray-400
+              hover:text-gray-700 dark:hover:text-gray-200
+              transition-colors duration-150
+              p-1
+            ">
+              <svg 
+                className={`
+                  w-4 h-4 transition-transform duration-200
+                  ${isCollapsed ? 'rotate-180' : ''}
+                `}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M19 9l-7 7-7-7" 
+                />
+              </svg>
+            </button>
+          </div>
 
-        {/* Widget Content */}
-        <div className={`
-          overflow-hidden transition-all duration-200 ease-in-out
-          ${isCollapsed ? 'max-h-0' : 'max-h-96'}
-        `}>
-          <div className="p-4">
-            {content}
+          {/* Widget Content */}
+          <div className={`
+            overflow-hidden transition-all duration-200 ease-in-out
+            ${isCollapsed ? 'max-h-0' : 'max-h-96'}
+          `}>
+            <div className="p-4">
+              {content}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };
 

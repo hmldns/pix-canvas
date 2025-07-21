@@ -1,4 +1,5 @@
 import React, { useState, ReactNode } from 'react';
+import { useMobilePanel } from '@contexts/MobilePanelContext';
 
 export interface BaseWidgetProps {
   title: string;
@@ -16,6 +17,7 @@ const BaseWidget: React.FC<BaseWidgetProps> = ({
   className = ''
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const { isMobile } = useMobilePanel();
 
   const positionClasses = {
     'top-left': 'top-4 left-4',
@@ -27,6 +29,11 @@ const BaseWidget: React.FC<BaseWidgetProps> = ({
   const toggleCollapsed = () => {
     setIsCollapsed(!isCollapsed);
   };
+
+  // Hide BaseWidget on mobile - mobile widgets are handled separately
+  if (isMobile) {
+    return null;
+  }
 
   return (
     <div className={`

@@ -8,6 +8,7 @@ import {
   PixelUpdateData,
 } from '@libs/common-types';
 import { captureException, addBreadcrumb } from '../config/sentry';
+import { config as appConfig } from '@/config/config';
 
 export interface WebSocketConfig {
   url: string;
@@ -44,8 +45,21 @@ export class WebSocketService {
   private lastPingTime = 0;
 
   constructor(config: Partial<WebSocketConfig> = {}, handlers: WebSocketEventHandlers = {}) {
+    // Priority: 1) Explicit config, 2) Window object, 3) Environment variable
+    let wsUrl = appConfig.websocket.url;
+
+    // If the URL is not absolute, build it from the current page's location
+    if (wsUrl && !wsUrl.startsWith('ws:') && !wsUrl.startsWith('wss:')) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}${wsUrl}`;
+    } else if (!wsUrl) {
+      // Fallback for local development if no variable is set
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.hostname}:3001/ws`;
+    }
+    
     this.config = {
-      url: import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws',
+      url: wsUrl,
       reconnectAttempts: 5,
       reconnectDelay: 3000,
       heartbeatInterval: 30000,

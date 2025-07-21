@@ -9,14 +9,17 @@ interface Config {
   nodeEnv: string;
   mongodbUri: string;
   sentryDsn?: string;
+  sentryEnvironment?: string;
   debug: boolean;
 }
 
 const config: Config = {
-  port: parseInt(process.env.BACKEND_PORT || '3001', 10),
+  // Use PORT in Docker containers, BACKEND_PORT in development
+  port: parseInt(process.env.PORT || process.env.BACKEND_PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/pixcanvas',
   sentryDsn: process.env.SENTRY_DSN_BACKEND,
+  sentryEnvironment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development',
   debug: process.env.DEBUG === 'true',
 };
 

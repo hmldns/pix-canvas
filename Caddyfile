@@ -1,10 +1,10 @@
-localhost {
+{$DOMAIN} {
     # Serve static frontend files
     handle_path /* {
-        reverse_proxy frontend:80
+        reverse_proxy frontend:3000
     }
 
-    # WebSocket connection to backend
+    # WebSocket connection to backend  
     handle /ws* {
         reverse_proxy backend:3001
     }
@@ -14,12 +14,12 @@ localhost {
         reverse_proxy backend:3001
     }
 
-    # WebRTC signaling service
-    handle /signal* {
+    # WebRTC signaling service (Socket.IO)
+    handle /ws/socket.io/* {
         reverse_proxy signaling:3002
     }
 
-    # Enable logging
+    # Enable logging for debugging
     log {
         output stdout
         format json

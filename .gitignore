@@ -1,6 +1,15 @@
 node_modules
-.env
-.idea
 dist
+.idea
+
+# Environment files (keep templates, ignore actual configs and local overrides)
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.production
+
+# Legacy environment files (can be removed eventually)
+.env.prod
 
 

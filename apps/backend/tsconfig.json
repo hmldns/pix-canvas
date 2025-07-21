@@ -2,15 +2,17 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "noEmit": false,
+    "module": "CommonJS",
     "paths": {
       "@libs/common-types": ["../../libs/common-types/src"],
       "@libs/utils": ["../../libs/utils/src"]
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "../../libs/common-types/src/**/*",
+    "../../libs/utils/src/**/*"
   ],
   "exclude": [
     "node_modules",

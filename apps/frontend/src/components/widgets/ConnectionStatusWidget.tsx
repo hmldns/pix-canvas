@@ -1,5 +1,6 @@
 import React from 'react';
 import BaseWidget from './BaseWidget';
+import MobileWidget from './MobileWidget';
 import { webSocketService, ConnectionStatus } from '@services/websocket';
 
 const ConnectionStatusWidget: React.FC = () => {
@@ -11,40 +12,44 @@ const ConnectionStatusWidget: React.FC = () => {
   const [lastPingTime, setLastPingTime] = React.useState<number>(0);
   const [pingTimeoutWarning, setPingTimeoutWarning] = React.useState(false);
 
+  // Poll WebSocket status periodically instead of setting up competing handlers
   React.useEffect(() => {
-    // Update handlers to track connection status
-    webSocketService.updateHandlers({
-      onConnect: () => {
-        setConnectionStatus(ConnectionStatus.CONNECTED);
-        setLastConnected(new Date());
-        setReconnectAttempt(0);
-        setPingTimeoutWarning(false);
-        // Update initial ping time
-        const stats = webSocketService.getStats();
-        setLastPingTime(stats.lastPingTime);
-      },
-      onDisconnect: () => {
-        setConnectionStatus(ConnectionStatus.DISCONNECTED);
-        setPingTimeoutWarning(false);
-      },
-      onError: () => {
-        setConnectionStatus(ConnectionStatus.ERROR);
-        setPingTimeoutWarning(false);
-      },
-      onReconnecting: (attempt) => {
-        setConnectionStatus(ConnectionStatus.RECONNECTING);
-        setReconnectAttempt(attempt);
-        setPingTimeoutWarning(false);
-      }
-    });
-
-    // Initial status
-    if (connectionStatus === ConnectionStatus.CONNECTED) {
-      setLastConnected(new Date());
+    const updateStatus = () => {
+      const wsStatus = webSocketService.getStatus();
       const stats = webSocketService.getStats();
+      
+      // Update connection status
+      if (wsStatus !== connectionStatus) {
+        setConnectionStatus(wsStatus);
+        
+        // Track connection events
+        if (wsStatus === ConnectionStatus.CONNECTED && connectionStatus !== ConnectionStatus.CONNECTED) {
+          setLastConnected(new Date());
+          setReconnectAttempt(0);
+          setPingTimeoutWarning(false);
+        }
+        
+        if (wsStatus === ConnectionStatus.RECONNECTING) {
+          setReconnectAttempt(stats.reconnectAttempt);
+        }
+        
+        if (wsStatus !== ConnectionStatus.CONNECTED) {
+          setPingTimeoutWarning(false);
+        }
+      }
+      
+      // Update ping time
       setLastPingTime(stats.lastPingTime);
-    }
-  }, []);
+    };
+
+    // Initial update
+    updateStatus();
+    
+    // Poll every 500ms for status changes
+    const interval = setInterval(updateStatus, 500);
+    
+    return () => clearInterval(interval);
+  }, [connectionStatus]);
 
   // Monitor keepalive timeout every second
   React.useEffect(() => {
@@ -171,111 +176,131 @@ const ConnectionStatusWidget: React.FC = () => {
 
   const statusInfo = getStatusInfo();
 
-  return (
-    <BaseWidget 
-      title="Connection" 
-      position="top-left"
-      defaultCollapsed={true}
-    >
-      <div className="space-y-4">
-        {/* Status Indicator */}
-        <div className={`p-3 rounded-lg ${statusInfo.bgColor}`}>
-          <div className="flex items-center space-x-3">
-            <span className={`text-lg ${statusInfo.color}`}>
-              {statusInfo.icon}
-            </span>
-            <div>
-              <div className={`font-medium ${statusInfo.color}`}>
-                {statusInfo.text}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                {statusInfo.description}
-              </div>
+  const connectionIcon = (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M2 9.5A3.5 3.5 0 005.5 13H9v2.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 15.586V13h3.5A3.5 3.5 0 0018 9.5v-6A3.5 3.5 0 0014.5 0h-9A3.5 3.5 0 002 3.5v6zM5.5 2A1.5 1.5 0 004 3.5v6A1.5 1.5 0 005.5 11h9A1.5 1.5 0 0016 9.5v-6A1.5 1.5 0 0014.5 2h-9z" clipRule="evenodd" />
+    </svg>
+  );
+
+  const widgetContent = (
+    <div className="space-y-4">
+      {/* Status Indicator */}
+      <div className={`p-3 rounded-lg ${statusInfo.bgColor}`}>
+        <div className="flex items-center space-x-3">
+          <span className={`text-lg ${statusInfo.color}`}>
+            {statusInfo.icon}
+          </span>
+          <div>
+            <div className={`font-medium ${statusInfo.color}`}>
+              {statusInfo.text}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {statusInfo.description}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Connection Details */}
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600 dark:text-gray-400">Status:</span>
-            <span className="text-gray-900 dark:text-gray-100 capitalize">
-              {connectionStatus}
-            </span>
-          </div>
-          
-          {lastConnected && connectionStatus === ConnectionStatus.CONNECTED && (
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Uptime:</span>
-              <span className="text-gray-900 dark:text-gray-100">
-                {formatUptime()}
-              </span>
-            </div>
-          )}
-
-          {connectionStatus === ConnectionStatus.CONNECTED && (
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Last ping:</span>
-              <span className={`text-gray-900 dark:text-gray-100 ${pingTimeoutWarning ? 'text-orange-600 dark:text-orange-400' : ''}`}>
-                {formatLastPing()}
-              </span>
-            </div>
-          )}
-
-          <div className="flex justify-between">
-            <span className="text-gray-600 dark:text-gray-400">Server:</span>
-            <span className="text-gray-900 dark:text-gray-100 text-xs font-mono">
-              localhost:3001
-            </span>
-          </div>
+      {/* Connection Details */}
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-400">Status:</span>
+          <span className="text-gray-900 dark:text-gray-100 capitalize">
+            {connectionStatus}
+          </span>
         </div>
+        
+        {lastConnected && connectionStatus === ConnectionStatus.CONNECTED && (
+          <div className="flex justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Uptime:</span>
+            <span className="text-gray-900 dark:text-gray-100">
+              {formatUptime()}
+            </span>
+          </div>
+        )}
 
-        {/* Actions */}
-        <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
-          {(connectionStatus === ConnectionStatus.DISCONNECTED || 
-            connectionStatus === ConnectionStatus.ERROR) && (
+        {connectionStatus === ConnectionStatus.CONNECTED && (
+          <div className="flex justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Last ping:</span>
+            <span className={`text-gray-900 dark:text-gray-100 ${pingTimeoutWarning ? 'text-orange-600 dark:text-orange-400' : ''}`}>
+              {formatLastPing()}
+            </span>
+          </div>
+        )}
+
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-400">Server:</span>
+          <span className="text-gray-900 dark:text-gray-100 text-xs font-mono">
+            localhost:3001
+          </span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+        {(connectionStatus === ConnectionStatus.DISCONNECTED || 
+          connectionStatus === ConnectionStatus.ERROR) && (
+          <button
+            onClick={handleReconnect}
+            className="
+              w-full px-3 py-2 text-sm font-medium
+              bg-blue-500 hover:bg-blue-600
+              text-white rounded-md
+              transition-colors duration-150
+              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+            "
+          >
+            Reconnect
+          </button>
+        )}
+
+        {pingTimeoutWarning && connectionStatus === ConnectionStatus.CONNECTED && (
+          <div className="space-y-2">
+            <div className="text-center text-xs text-orange-600 dark:text-orange-400">
+              ⚠️ Keepalive timeout detected
+            </div>
             <button
               onClick={handleReconnect}
               className="
                 w-full px-3 py-2 text-sm font-medium
-                bg-blue-500 hover:bg-blue-600
+                bg-orange-500 hover:bg-orange-600
                 text-white rounded-md
                 transition-colors duration-150
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2
               "
             >
-              Reconnect
+              Force Reconnect
             </button>
-          )}
-
-          {pingTimeoutWarning && connectionStatus === ConnectionStatus.CONNECTED && (
-            <div className="space-y-2">
-              <div className="text-center text-xs text-orange-600 dark:text-orange-400">
-                ⚠️ Keepalive timeout detected
-              </div>
-              <button
-                onClick={handleReconnect}
-                className="
-                  w-full px-3 py-2 text-sm font-medium
-                  bg-orange-500 hover:bg-orange-600
-                  text-white rounded-md
-                  transition-colors duration-150
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2
-                "
-              >
-                Force Reconnect
-              </button>
-            </div>
-          )}
-          
-          {connectionStatus === ConnectionStatus.CONNECTED && !pingTimeoutWarning && (
-            <div className="text-center text-xs text-green-600 dark:text-green-400">
-              ✓ All systems operational
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+        
+        {connectionStatus === ConnectionStatus.CONNECTED && !pingTimeoutWarning && (
+          <div className="text-center text-xs text-green-600 dark:text-green-400">
+            ✓ All systems operational
+          </div>
+        )}
       </div>
-    </BaseWidget>
+    </div>
+  );
+
+  return (
+    <>
+      <MobileWidget
+        title="Connection"
+        panelId="connection"
+        icon={connectionIcon}
+        position="top-left"
+      >
+        {widgetContent}
+      </MobileWidget>
+      <BaseWidget 
+        title="Connection" 
+        position="top-left"
+        defaultCollapsed={true}
+      >
+        {widgetContent}
+      </BaseWidget>
+    </>
   );
 };
 
