@@ -6,8 +6,7 @@ A real-time collaborative digital art space where anonymous visitors can draw pi
 
 ## ✨ Demo
 
-![Infinite Pixel Canvas Demo](doc/demo.gif)
-*Real-time collaborative pixel drawing with live cursors and chat*
+![Infinite Pixel Canvas Demo](doc/hi.gif)
 
 ## 🎯 What Is This?
 
@@ -90,19 +89,49 @@ graph TD
 
 ## 🛠️ How It's Made
 
-This project was architected and built using **[Nautex AI](https://nautex.ai)**, a development platform that provides systematic guidance for coding agents. The development process followed a structured approach:
+This project demonstrates the complete **specification-to-code** development paradigm using **[Nautex AI](https://github.com/hmldns/nautex)** acting as Architect, Technical Product Manager, and Project Manager for **Claude Code**. 
 
-### 📋 Requirements & Planning
-- **[PRD.md](.nautex/docs/PRD.md)** - Complete product specification with user stories and functional requirements
-- **[TRD.md](.nautex/docs/TRD.md)** - Technical architecture, API design, and implementation strategy  
-- **[FILE.md](.nautex/docs/FILE.md)** - Detailed project structure and file organization
+### Development Flow & Artifacts
 
-### 🤖 AI-Assisted Development
-The entire codebase was implemented using **Claude Code** as the coding agent, following the systematic task breakdown provided by Nautex AI. This approach ensured:
+#### 🎯 1. Requirements Gathering
+- Interactive briefing session with Nautex AI chatbot
+- Comprehensive exploration of project vision, gathering questions and ideas
+- **→ Produces**: Initial product and technical specifications
 
-- **Methodical Implementation**: Layer-by-layer development from core functionality to advanced features
-- **Quality Assurance**: Comprehensive testing strategy with integration tests for backend services
-- **Consistent Architecture**: Monorepo structure with shared types and utilities
+#### 📝 2. Specification Refinement  
+- Iterative refinement process within Nautex app
+- Filling details and resolving TODOs flagged during analysis
+- **→ Produces**: Finalized PRD and TRD documents
+
+#### 🗂️ 3. Codebase Architecture Planning
+- Pre-planned file organization mapped to specific requirements
+- Every file location determined before coding begins
+- **→ Produces**: Complete FILE structure document
+
+#### 📋 4. Task Planning & Decomposition
+- Granular coding, testing, and review tasks planned in structured layers
+- Reviews scheduled early to verify alignment and demonstrate incremental progress
+- **→ Produces**: Executable task plan with file/requirement references
+
+#### 📥 5. Export & Synchronization
+- All artifacts (PRD, TRD, FILE) exported from Nautex app
+- **[Nautex MCP](https://github.com/hmldns/nautex)** enables synchronization
+- **→ Delivers**: 
+  - **[PRD.md](.nautex/docs/PRD.md)** - Product requirements document
+  - **[TRD.md](.nautex/docs/TRD.md)** - Technical requirements document
+  - **[FILE.md](.nautex/docs/FILE.md)** - File structure mapping
+  - Live task stream via MCP to coding agent
+
+#### 🤖 6. Systematic Code Execution
+- **Claude Code** receives synchronized specifications and tasks
+- Implements each task following pre-defined guidance
+- Zero architectural decisions required—all planning completed upfront
+- **→ Produces**: Complete, specification-aligned codebase
+
+This approach ensured:
+- **Predictable Outcomes**: Complete application built exactly to specification
+- **Quality Assurance**: Comprehensive testing strategy with integration tests
+- **Consistent Architecture**: Monorepo structure with shared types and utilities  
 - **Performance Focus**: 60 FPS rendering target with optimized WebGL and object pooling
 
 ### 🏭 Key Engineering Decisions
@@ -155,5 +184,3 @@ make test-backend-watch
 - **Debug Tools**: Development panel for tweaking animations and effects
 
 ---
-
-*Built with systematic AI guidance from [Nautex AI](https://nautex.ai) by [Ivan Makarov](https://x.com/ivan_mkrv) • Implemented by Claude Code*
