@@ -1,6 +1,6 @@
 # 🎨 Collaborative Pixel Canvas
 
-A real-time collaborative digital art space where anonymous visitors can draw pixels together on a shared canvas. This project serves as a comprehensive technological demonstrator, showcasing both cutting-edge web technologies (WebRTC, WebSockets, high-performance canvas rendering) and the emerging paradigm of AI-driven development—where complete applications are systematically compiled from detailed specifications using coding agents.
+A web app where anyone can draw pixels on a shared canvas in real-time. Other people see your pixels appear instantly, you can see their cursors moving around, and there's a chat to talk while drawing. No signup required—just visit and start drawing.
 
 **[🚀 Live Demo](https://pixall.art)** | **Built with [Nautex AI](https://nautex.ai) by [Ivan Makarov](https://x.com/ivan_mkrv)**
 
@@ -10,15 +10,16 @@ A real-time collaborative digital art space where anonymous visitors can draw pi
 
 ## 🎯 What Is This?
 
-Infinite Pixel Canvas is a browser-based collaborative art platform where users can:
+It's like a shared whiteboard but with pixels. You can:
 
-- **Draw Together**: Place pixels in real-time with other anonymous users
-- **See Live Presence**: Watch other users' cursors move across the canvas
-- **Chat & Connect**: Communicate via peer-to-peer chat while creating
-- **Explore Canvas**: Navigate a 5000x5000 pixel grid with smooth zoom/pan
-- **Join Instantly**: No registration required - jump in and start creating
+- Draw pixels one at a time (click to place)
+- See other people drawing at the same time
+- Watch their cursors move around
+- Chat with everyone currently online
+- Zoom and pan around a 5000x5000 pixel canvas
+- Join anonymously - you get a random username
 
-The project serves as both an engaging creative platform and a comprehensive demonstration of modern web technologies working in harmony.
+Built to explore real-time web tech (WebRTC for cursors/chat, WebSockets for pixel updates) and test if AI can build complex apps from specifications alone.
 
 ## 🏗️ Architecture & Tech Stack
 
@@ -89,60 +90,52 @@ graph TD
 
 ## 🛠️ How It's Made
 
-This project demonstrates the complete **specification-to-code** development paradigm using **[Nautex AI](https://github.com/hmldns/nautex)** acting as Architect, Technical Product Manager, and Project Manager for **Claude Code**. 
+This app was built by AI from start to finish. Here's how it worked: 
 
-### Development Flow & Artifacts
+1. **Talked to Nautex AI chatbot** about what I wanted to build
+   - It asked questions and gathered requirements
+   - **Result**: Initial specs for the app
 
-#### 🎯 1. Requirements Gathering
-- Interactive briefing session with Nautex AI chatbot
-- Comprehensive exploration of project vision, gathering questions and ideas
-- **→ Produces**: Initial product and technical specifications
+2. **Refined the specifications** in the Nautex app
+   - Fixed gaps and added missing details
+   - **Result**: Complete PRD and TRD documents
 
-#### 📝 2. Specification Refinement  
-- Iterative refinement process within Nautex app
-- Filling details and resolving TODOs flagged during analysis
-- **→ Produces**: Finalized PRD and TRD documents
+3. **Planned the file structure** before any coding
+   - Mapped every file to specific requirements
+   - **Result**: Complete codebase blueprint
 
-#### 🗂️ 3. Codebase Architecture Planning
-- Pre-planned file organization mapped to specific requirements
-- Every file location determined before coding begins
-- **→ Produces**: Complete FILE structure document
+4. **Created coding tasks** broken into small chunks
+   - Each task linked to specific files and requirements
+   - **Result**: Step-by-step implementation plan
 
-#### 📋 4. Task Planning & Decomposition
-- Granular coding, testing, and review tasks planned in structured layers
-- Reviews scheduled early to verify alignment and demonstrate incremental progress
-- **→ Produces**: Executable task plan with file/requirement references
+5. **Exported everything** and connected to Claude Code
+   - Used [Nautex MCP](https://github.com/hmldns/nautex) for real-time sync
+   - **Delivered to Claude**: 
+     - [PRD.md](.nautex/docs/PRD.md) - What to build
+     - [TRD.md](.nautex/docs/TRD.md) - How to build it
+     - [FILE.md](.nautex/docs/FILE.md) - Where to put code
+     - Live task updates
 
-#### 📥 5. Export & Synchronization
-- All artifacts (PRD, TRD, FILE) exported from Nautex app
-- **[Nautex MCP](https://github.com/hmldns/nautex)** enables synchronization
-- **→ Delivers**: 
-  - **[PRD.md](.nautex/docs/PRD.md)** - Product requirements document
-  - **[TRD.md](.nautex/docs/TRD.md)** - Technical requirements document
-  - **[FILE.md](.nautex/docs/FILE.md)** - File structure mapping
-  - Live task stream via MCP to coding agent
+6. **Claude Code wrote all the code**
+   - Followed the specifications exactly
+   - No architectural decisions needed - everything was pre-planned
+   - **Result**: Working app that matches the specs
 
-#### 🤖 6. Systematic Code Execution
-- **Claude Code** receives synchronized specifications and tasks
-- Implements each task following pre-defined guidance
-- Zero architectural decisions required—all planning completed upfront
-- **→ Produces**: Complete, specification-aligned codebase
+What this approach gave us:
+- App built exactly as specified - no surprises
+- Tests included from the start
+- Clean monorepo structure with shared types
+- Smooth 60 FPS rendering with WebGL optimization
 
-This approach ensured:
-- **Predictable Outcomes**: Complete application built exactly to specification
-- **Quality Assurance**: Comprehensive testing strategy with integration tests
-- **Consistent Architecture**: Monorepo structure with shared types and utilities  
-- **Performance Focus**: 60 FPS rendering target with optimized WebGL and object pooling
+### 🏭 Technical Decisions (Made by AI)
 
-### 🏭 Key Engineering Decisions
+**Two-channel approach**: WebSockets for pixels (needs to be reliable), WebRTC for cursors/chat (needs to be fast)
 
-**Real-time Architecture**: Hybrid approach using WebSockets for reliable pixel state synchronization and WebRTC data channels for low-latency cursor movements and ephemeral chat.
+**Append-only pixels**: Never delete pixel history, just track the latest one for each position
 
-**Scalable Data Model**: Append-only pixel storage with last-write-wins semantics, enabling horizontal scaling and maintaining complete drawing history.
+**GPU rendering**: PixiJS handles thousands of pixels smoothly, grid detail changes based on zoom level
 
-**Performance Optimization**: PixiJS with GPU-accelerated rendering, procedural particle effects, and intelligent Level-of-Detail grid rendering based on zoom level.
-
-**Anonymous User Experience**: Cookie-based sessions with auto-generated usernames, eliminating friction while maintaining persistent contributions.
+**No signup**: Cookie-based sessions with random usernames - zero friction to start drawing
 
 ## 🚀 Quick Start
 
@@ -171,16 +164,16 @@ make test-backend
 make test-backend-watch
 ```
 
-## 🎨 Features in Detail
+## 🎨 Features
 
-- **Large Canvas**: 5000x5000 pixel grid with smooth zoom and pan
-- **Real-time Collaboration**: See other users drawing live with sub-200ms latency
-- **Peer-to-Peer Chat**: Direct communication without server storage
-- **Live Cursors**: WebRTC-powered cursor sharing with user identification
-- **Visual Feedback**: Particle effects and audio cues for drawing actions
-- **Connection Resilience**: Automatic reconnection with manual fallback
-- **Mobile Responsive**: Optimized for both desktop and mobile devices
-- **Dark/Light Themes**: Toggle between interface modes
-- **Debug Tools**: Development panel for tweaking animations and effects
+- 5000x5000 pixel canvas with smooth zoom/pan
+- See other people's pixels appear in <200ms
+- Peer-to-peer chat (not stored on server)
+- Live cursors showing where others are pointing
+- Particle effects when pixels are placed
+- Auto-reconnect if connection drops
+- Works on mobile
+- Dark/light theme toggle
+- Debug panel for tweaking animations (dev mode)
 
 ---
