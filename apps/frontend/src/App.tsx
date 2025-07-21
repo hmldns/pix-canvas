@@ -6,6 +6,7 @@ import ConnectionStatusWidget from '@components/widgets/ConnectionStatusWidget';
 import ColorPaletteWidget from '@components/widgets/ColorPaletteWidget';
 import ThemeToggleWidget from '@components/widgets/ThemeToggleWidget';
 import VolumeControlWidget from '@components/widgets/VolumeControlWidget';
+import InfoWidget from '@components/widgets/InfoWidget';
 import DebugPanel from '@components/widgets/DebugPanel';
 import { MobilePanelProvider } from '@contexts/MobilePanelContext';
 
@@ -29,7 +30,7 @@ const App: React.FC = () => {
       <div className="w-full h-full bg-gray-100 dark:bg-gray-900 relative">
         {/* Main Canvas - PixiJS rendering area */}
         <Canvas ref={canvasRef} />
-        
+
         {/* Floating UI Widgets */}
         <ThemeToggleWidget />
         <ConnectionStatusWidget />
@@ -40,14 +41,15 @@ const App: React.FC = () => {
         <UserListWidget />
         <ChatWidget />
         <ColorPaletteWidget />
-        
+        <InfoWidget />
+
         {/* Debug Panel - only visible in development or when enabled */}
         <DebugPanel
           effectsManager={canvasRef.current?.getEffectsManager?.()}
           soundManager={canvasRef.current?.getSoundManager?.()}
           webSocketService={canvasRef.current?.getWebSocketService?.()}
         />
-        
+
       </div>
     </MobilePanelProvider>
   );

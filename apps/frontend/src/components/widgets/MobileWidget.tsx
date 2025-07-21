@@ -29,7 +29,8 @@ const MobileWidget: React.FC<MobileWidgetProps> = ({
       'volume': 'top-4 left-16', // 60px from left (16 * 4px)
       'users': 'top-4 right-4',
       'chat': 'bottom-4 left-4',
-      'colors': 'bottom-4 right-4'
+      'colors': 'bottom-4 right-4',
+      'info': 'bottom-4 right-16' // 60px from right (16 * 4px), to the left of colors
     };
     return iconPositions[panelId as keyof typeof iconPositions] || positionClasses[position];
   };
@@ -41,6 +42,9 @@ const MobileWidget: React.FC<MobileWidgetProps> = ({
     }
     if (panelId === 'colors') {
       return 'bottom-16 right-4'; // Show above the colors button
+    }
+    if (panelId === 'info') {
+      return 'bottom-16 right-16'; // Show above the info button
     }
     // Top panels show below their buttons
     return getMobileIconPosition();
@@ -123,7 +127,7 @@ const MobileWidget: React.FC<MobileWidgetProps> = ({
                 ">
                   {title}
                 </h3>
-                
+
                 <button 
                   onClick={handleToggle}
                   className="

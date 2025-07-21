@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type MobilePanel = 'connection' | 'users' | 'chat' | 'colors' | 'volume' | null;
+export type MobilePanel = 'connection' | 'users' | 'chat' | 'colors' | 'volume' | 'info' | null;
 
 interface MobilePanelContextType {
   activePanel: MobilePanel;
@@ -32,7 +32,7 @@ export const MobilePanelProvider: React.FC<MobilePanelProviderProps> = ({ childr
     const checkMobile = () => {
       const isMobileDevice = window.innerWidth < 768; // md breakpoint
       setIsMobile(isMobileDevice);
-      
+
       // If switching from mobile to desktop, clear active panel
       if (!isMobileDevice && activePanel) {
         setActivePanel(null);
