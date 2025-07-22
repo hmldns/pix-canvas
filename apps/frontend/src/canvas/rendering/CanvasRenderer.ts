@@ -73,7 +73,7 @@ export class CanvasRenderer {
     this.grid = new Grid(container);
     
     // Set initial scale so 1 pixel coordinate = ~30 screen pixels
-    const initialScale = 30;
+    const initialScale = 10;
     container.scale.set(initialScale);
     
     // Update grid for initial scale
