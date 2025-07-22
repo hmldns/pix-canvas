@@ -187,7 +187,7 @@ export class PixelEffectManager {
     const particleSize = isOwnPixel ? this.config.particleSize : this.config.particleSize * 0.8;
     const speedMultiplier = isOwnPixel ? 1.0 : 0.7;
     
-    console.log(`🎨 Creating ${particleCount} particles with size ${particleSize}, color: ${color} (${colorValue})`);
+    // console.log(`🎨 Creating ${particleCount} particles with size ${particleSize}, color: ${color} (${colorValue})`);
     
     for (let i = 0; i < particleCount; i++) {
       const particle = this.acquireParticle();
@@ -222,7 +222,7 @@ export class PixelEffectManager {
       effect.particles.push(particleData);
       effect.container.addChild(particle);
       
-      console.log(`  🔸 Created particle ${i}: pos(${particle.x}, ${particle.y}), vel(${particleData.velocityX.toFixed(2)}, ${particleData.velocityY.toFixed(2)}), alpha: ${particle.alpha}`);
+      // console.log(`  🔸 Created particle ${i}: pos(${particle.x}, ${particle.y}), vel(${particleData.velocityX.toFixed(2)}, ${particleData.velocityY.toFixed(2)}), alpha: ${particle.alpha}`);
     }
   }
 
