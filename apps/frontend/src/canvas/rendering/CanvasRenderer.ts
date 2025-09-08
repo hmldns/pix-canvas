@@ -23,7 +23,7 @@ export class CanvasRenderer {
       width: 5000,
       height: 5000,
       backgroundColor: 0xf8fafc, // Light gray background
-      antialias: false,
+      antialias: true,
     };
 
     const finalConfig = { ...defaultConfig, ...config };
@@ -34,7 +34,7 @@ export class CanvasRenderer {
       height: window.innerHeight,
       backgroundColor: finalConfig.backgroundColor,
       antialias: finalConfig.antialias,
-      resolution: Math.min(window.devicePixelRatio || 1, 1.5),
+      resolution: window.devicePixelRatio || 1,
       autoDensity: true,
       powerPreference: 'high-performance',
     });
