@@ -72,7 +72,7 @@ export class StateSynchronizer {
         this.renderer.playPixelSound(pixelData.color, isOwnPixel);
       }
 
-      console.log(`🎨 Synced pixel at (${pixelData.x}, ${pixelData.y}) color: ${pixelData.color}`);
+      // console.log(`🎨 Synced pixel at (${pixelData.x}, ${pixelData.y}) color: ${pixelData.color}`);
     });
   }
 

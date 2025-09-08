@@ -305,7 +305,7 @@ export class CanvasRenderer {
     this.triggerPixelEffect(x, y, colorHex, true);
     this.playPixelSound(colorHex, true);
     
-    console.log(`🎨 Added pixel at (${x}, ${y}) with color 0x${color.toString(16)}`);
+    // console.log(`🎨 Added pixel at (${x}, ${y}) with color 0x${color.toString(16)}`);
   }
 
   public clearCanvas(): void {

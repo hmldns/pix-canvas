@@ -51,7 +51,7 @@ export class PixelRenderer {
     this.pixelContainer.addChild(pixelGraphics);
     this.pixelMap.set(key, pixelGraphics);
 
-    console.log(`🎨 Added pixel at (${pixelData.x}, ${pixelData.y}) color: ${pixelData.color}`);
+    // console.log(`🎨 Added pixel at (${pixelData.x}, ${pixelData.y}) color: ${pixelData.color}`);
   }
 
   /**
