@@ -23,7 +23,7 @@ export class CanvasRenderer {
       width: 5000,
       height: 5000,
       backgroundColor: 0xf8fafc, // Light gray background
-      antialias: true,
+      antialias: false,
     };
 
     const finalConfig = { ...defaultConfig, ...config };
@@ -34,8 +34,9 @@ export class CanvasRenderer {
       height: window.innerHeight,
       backgroundColor: finalConfig.backgroundColor,
       antialias: finalConfig.antialias,
-      resolution: window.devicePixelRatio || 1,
+      resolution: Math.min(window.devicePixelRatio || 1, 1.5),
       autoDensity: true,
+      powerPreference: 'high-performance',
     });
 
     this.setupApplication();
@@ -116,6 +117,8 @@ export class CanvasRenderer {
   private setupViewportControls(): void {
     let isDragging = false;
     let lastPosition = { x: 0, y: 0 };
+    let panScheduled = false;
+    let pendingPan = { x: 0, y: 0 };
 
     // Mouse/touch pan controls
     this.app.stage.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
@@ -126,18 +129,29 @@ export class CanvasRenderer {
     });
 
     this.app.stage.on('pointermove', (event: PIXI.FederatedPointerEvent) => {
-      if (isDragging) {
-        const deltaX = event.global.x - lastPosition.x;
-        const deltaY = event.global.y - lastPosition.y;
-        
-        const canvasContainer = this.app.stage.getChildByName('canvas-container');
-        if (canvasContainer) {
-          canvasContainer.x += deltaX;
-          canvasContainer.y += deltaY;
-        }
-        
-        lastPosition.x = event.global.x;
-        lastPosition.y = event.global.y;
+      if (!isDragging) return;
+
+      const deltaX = event.global.x - lastPosition.x;
+      const deltaY = event.global.y - lastPosition.y;
+      lastPosition.x = event.global.x;
+      lastPosition.y = event.global.y;
+
+      // Accumulate deltas and apply once per frame
+      pendingPan.x += deltaX;
+      pendingPan.y += deltaY;
+
+      if (!panScheduled) {
+        panScheduled = true;
+        requestAnimationFrame(() => {
+          const canvasContainer = this.app.stage.getChildByName('canvas-container');
+          if (canvasContainer) {
+            canvasContainer.x += pendingPan.x;
+            canvasContainer.y += pendingPan.y;
+          }
+          pendingPan.x = 0;
+          pendingPan.y = 0;
+          panScheduled = false;
+        });
       }
     });
 

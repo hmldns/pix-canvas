@@ -1,7 +1,8 @@
 import * as PIXI from 'pixi.js';
 import { PixelUpdateData } from '@libs/common-types';
 
-export interface PixelGraphicsObject extends PIXI.Graphics {
+// Use Sprite-based pixels for better batching (vs Graphics per pixel)
+export interface PixelSpriteObject extends PIXI.Sprite {
   pixelData: {
     x: number;
     y: number;
@@ -12,16 +13,27 @@ export interface PixelGraphicsObject extends PIXI.Graphics {
 
 export class PixelRenderer {
   private container: PIXI.Container;
-  private pixelMap: Map<string, PixelGraphicsObject> = new Map();
-  private pixelContainer: PIXI.Container;
+  private pixelMap: Map<string, PixelSpriteObject> = new Map();
+  private pixelContainer: PIXI.ParticleContainer;
+  private pixelTexture: PIXI.Texture;
 
   constructor(parentContainer: PIXI.Container) {
     this.container = parentContainer;
 
-    // Create dedicated container for pixels
-    this.pixelContainer = new PIXI.Container();
+    // Create a shared 1x1 white texture for all pixels
+    // Using PIXI.Texture.WHITE (10x10) is fine; we set width/height to 1 world unit
+    this.pixelTexture = PIXI.Texture.WHITE;
+
+    // Create ParticleContainer for highly batched sprite rendering
+    this.pixelContainer = new PIXI.ParticleContainer(200000, {
+      position: true,
+      scale: true,
+      rotation: false,
+      uvs: false,
+      alpha: false,
+      tint: true,
+    });
     this.pixelContainer.name = 'pixel-layer';
-    this.pixelContainer.sortableChildren = false; // Optimize performance
     
     // Add pixel container after grid but before other layers
     const gridContainer = parentContainer.getChildByName('grid-container');
@@ -44,12 +56,12 @@ export class PixelRenderer {
     // Remove existing pixel at this position
     this.removePixel(pixelData.x, pixelData.y);
 
-    // Create new pixel graphics
-    const pixelGraphics = this.createPixelGraphics(pixelData);
+    // Create new pixel sprite
+    const pixelSprite = this.createPixelSprite(pixelData);
     
     // Add to container and tracking
-    this.pixelContainer.addChild(pixelGraphics);
-    this.pixelMap.set(key, pixelGraphics);
+    this.pixelContainer.addChild(pixelSprite);
+    this.pixelMap.set(key, pixelSprite);
 
     // console.log(`🎨 Added pixel at (${pixelData.x}, ${pixelData.y}) color: ${pixelData.color}`);
   }
@@ -67,16 +79,16 @@ export class PixelRenderer {
       // Remove existing pixel at this position
       this.removePixel(pixelData.x, pixelData.y);
 
-      // Create new pixel graphics
-      const pixelGraphics = this.createPixelGraphics(pixelData);
+      // Create new pixel sprite
+      const pixelSprite = this.createPixelSprite(pixelData);
       
       // Add to tracking (will batch add to container)
-      this.pixelMap.set(key, pixelGraphics);
+      this.pixelMap.set(key, pixelSprite);
     });
 
     // Batch add all new pixels to container
     const newPixels = Array.from(this.pixelMap.values()).filter(
-      pixel => !this.pixelContainer.children.includes(pixel)
+      (pixel) => !(this.pixelContainer.children as PIXI.DisplayObject[]).includes(pixel)
     );
     
     newPixels.forEach(pixel => {
@@ -95,7 +107,8 @@ export class PixelRenderer {
 
     if (existingPixel) {
       this.pixelContainer.removeChild(existingPixel);
-      existingPixel.destroy();
+      // Keep shared texture alive
+      existingPixel.destroy({ texture: false, baseTexture: false });
       this.pixelMap.delete(key);
       return true;
     }
@@ -110,7 +123,7 @@ export class PixelRenderer {
     // Remove and destroy all pixel graphics
     this.pixelMap.forEach((pixel) => {
       this.pixelContainer.removeChild(pixel);
-      pixel.destroy();
+      pixel.destroy({ texture: false, baseTexture: false });
     });
 
     this.pixelMap.clear();
@@ -120,7 +133,7 @@ export class PixelRenderer {
   /**
    * Get pixel at coordinates
    */
-  public getPixelAt(x: number, y: number): PixelGraphicsObject | null {
+  public getPixelAt(x: number, y: number): PixelSpriteObject | null {
     const key = this.getPixelKey(x, y);
     return this.pixelMap.get(key) || null;
   }
@@ -136,7 +149,7 @@ export class PixelRenderer {
   /**
    * Get all pixels
    */
-  public getAllPixels(): PixelGraphicsObject[] {
+  public getAllPixels(): PixelSpriteObject[] {
     return Array.from(this.pixelMap.values());
   }
 
@@ -166,8 +179,8 @@ export class PixelRenderer {
   /**
    * Get pixels in a specific region (for culling/optimization)
    */
-  public getPixelsInRegion(minX: number, minY: number, maxX: number, maxY: number): PixelGraphicsObject[] {
-    const pixelsInRegion: PixelGraphicsObject[] = [];
+  public getPixelsInRegion(minX: number, minY: number, maxX: number, maxY: number): PixelSpriteObject[] {
+    const pixelsInRegion: PixelSpriteObject[] = [];
 
     this.pixelMap.forEach((pixel) => {
       const { x, y } = pixel.pixelData;
@@ -180,36 +193,36 @@ export class PixelRenderer {
   }
 
   /**
-   * Create PIXI graphics object for a pixel
+   * Create PIXI sprite for a pixel
    */
-  private createPixelGraphics(pixelData: PixelUpdateData): PixelGraphicsObject {
+  private createPixelSprite(pixelData: PixelUpdateData): PixelSpriteObject {
     // Convert hex color to number
     const colorNumber = parseInt(pixelData.color.replace('#', ''), 16);
-    
-    // Create graphics object
-    const graphics = new PIXI.Graphics() as PixelGraphicsObject;
-    
-    // Draw the pixel (1x1 rectangle)
-    graphics.beginFill(colorNumber);
-    graphics.drawRect(pixelData.x, pixelData.y, 1, 1);
-    graphics.endFill();
-    
+
+    // Create sprite using shared 1x1 white texture
+    const sprite = new PIXI.Sprite(this.pixelTexture) as PixelSpriteObject;
+
+    // Position at world coordinates (1 unit = 1 canvas pixel)
+    sprite.position.set(pixelData.x, pixelData.y);
+    sprite.width = 1;
+    sprite.height = 1;
+    sprite.tint = colorNumber;
+
     // Store pixel data for reference
-    graphics.pixelData = {
+    sprite.pixelData = {
       x: pixelData.x,
       y: pixelData.y,
       color: pixelData.color,
       userId: pixelData.userId,
     };
-    
+
     // Set name for debugging
-    graphics.name = `pixel-${pixelData.x}-${pixelData.y}`;
-    
+    sprite.name = `pixel-${pixelData.x}-${pixelData.y}`;
+
     // Optimize for performance
-    graphics.cacheAsBitmap = false; // Don't cache individual pixels
-    graphics.eventMode = 'none'; // Pixels don't need interaction
-    
-    return graphics;
+    sprite.eventMode = 'none'; // Pixels don't need interaction
+
+    return sprite;
   }
 
   /**
