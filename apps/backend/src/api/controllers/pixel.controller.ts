@@ -31,6 +31,53 @@ export const getPixels = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const getPixelsBinary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('📊 Fetching current canvas state in binary format...');
+    
+    // Get current canvas state using the aggregation method
+    const pixels = await (Pixel as any).getCurrentCanvasState();
+    
+    console.log(`✅ Retrieved ${pixels.length} pixels from canvas (binary mode)`);
+    
+    // Create 8-byte aligned buffer
+    const buffer = Buffer.allocUnsafe(pixels.length * 8);
+    
+    pixels.forEach((pixel: any, index: number) => {
+      const offset = index * 8;
+      
+      // Parse hex color to RGB
+      const color = pixel.color.replace('#', '');
+      const r = parseInt(color.substr(0, 2), 16);
+      const g = parseInt(color.substr(2, 2), 16);
+      const b = parseInt(color.substr(4, 2), 16);
+      
+      // Write to buffer in little-endian format
+      buffer.writeUInt16LE(pixel.x, offset);
+      buffer.writeUInt16LE(pixel.y, offset + 2);
+      buffer.writeUInt8(r, offset + 4);
+      buffer.writeUInt8(g, offset + 5);
+      buffer.writeUInt8(b, offset + 6);
+      buffer.writeUInt8(0, offset + 7); // padding byte for 8-byte alignment
+    });
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('X-Pixel-Count', pixels.length.toString());
+    res.setHeader('Content-Length', buffer.length.toString());
+    
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('❌ Error fetching canvas state (binary):', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to fetch canvas state in binary format',
+      statusCode: 500,
+    });
+  }
+};
+
 export const getPixelsInRegion = async (req: Request, res: Response): Promise<void> => {
   try {
     const { minX, minY, maxX, maxY } = req.query;

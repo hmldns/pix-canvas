@@ -122,6 +122,53 @@ export class ApiService {
   }
 
   /**
+   * Fetch the current state of the entire canvas in binary format
+   */
+  public async getCanvasPixelsBinary(): Promise<PixelData[]> {
+    console.log('🎨 Fetching canvas pixels (binary format)...');
+
+    try {
+      const response = await this.fetchWithTimeout('/api/pixels/binary', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw await this.handleErrorResponse(response);
+      }
+
+      // Get pixel count from header
+      const pixelCount = parseInt(response.headers.get('X-Pixel-Count') || '0', 10);
+      
+      // Get binary data
+      const buffer = await response.arrayBuffer();
+      const view = new DataView(buffer);
+      const pixels: PixelData[] = [];
+      
+      // Parse 8-byte aligned pixel data
+      for (let i = 0; i < buffer.byteLength; i += 8) {
+        const x = view.getUint16(i, true); // little-endian
+        const y = view.getUint16(i + 2, true); // little-endian
+        const r = view.getUint8(i + 4);
+        const g = view.getUint8(i + 5);
+        const b = view.getUint8(i + 6);
+        // Skip padding byte at i + 7
+        
+        // Convert RGB back to hex color
+        const color = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        pixels.push({ x, y, color });
+      }
+      
+      console.log(`✅ Fetched ${pixels.length} pixels from canvas (binary: ${buffer.byteLength} bytes)`);
+      
+      return pixels;
+    } catch (error) {
+      console.error('❌ Failed to fetch canvas pixels (binary):', error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetch pixels in a specific region (for optimization in future)
    */
   public async getPixelsInRegion(

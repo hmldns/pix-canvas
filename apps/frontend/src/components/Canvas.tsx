@@ -96,8 +96,15 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(({ className = '' }, ref) => {
       }
 
       // Fetch initial canvas state
-      const pixels = await apiService.getCanvasPixels();
-      console.log(`🎨 Loaded ${pixels.length} initial pixels`);
+      // Feature flag for binary loading (can be toggled for testing)
+      const useBinaryLoad = true;
+      console.log('🔧 Binary loading enabled:', useBinaryLoad);
+      
+      const pixels = useBinaryLoad 
+        ? await apiService.getCanvasPixelsBinary()
+        : await apiService.getCanvasPixels();
+      
+      console.log(`🎨 Loaded ${pixels.length} initial pixels (${useBinaryLoad ? 'binary' : 'JSON'} format)`);
 
       // Update state synchronizer with initial pixels
       if (stateSyncRef.current) {
