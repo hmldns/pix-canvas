@@ -1,12 +1,17 @@
 import { Request, Response } from 'express';
 import { Pixel } from '../../models/pixel.model';
+import { getPixelRepository } from '../../services/pixelRepository';
 
 export const getPixels = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('📊 Fetching current canvas state...');
     
-    // Get current canvas state using the aggregation method
-    const pixels = await (Pixel as any).getCurrentCanvasState();
+    // Prefer in-memory cache for current canvas state
+    const repo = getPixelRepository();
+    const cached = repo.getCanvasState();
+    const pixels = cached.length
+      ? cached
+      : await (Pixel as any).getCurrentCanvasState();
     
     console.log(`✅ Retrieved ${pixels.length} pixels from canvas`);
     
@@ -35,8 +40,11 @@ export const getPixelsBinary = async (req: Request, res: Response): Promise<void
   try {
     console.log('📊 Fetching current canvas state in binary format...');
     
-    // Get current canvas state using the aggregation method
-    const pixels = await (Pixel as any).getCurrentCanvasState();
+    const repo = getPixelRepository();
+    const cached = repo.getCanvasState();
+    const pixels = cached.length
+      ? cached
+      : await (Pixel as any).getCurrentCanvasState();
     
     console.log(`✅ Retrieved ${pixels.length} pixels from canvas (binary mode)`);
     
@@ -127,8 +135,12 @@ export const getPixelsInRegion = async (req: Request, res: Response): Promise<vo
     
     console.log(`📊 Fetching pixels in region: (${minXNum},${minYNum}) to (${maxXNum},${maxYNum})`);
     
-    // Get pixels in the specified region
-    const pixels = await (Pixel as any).getPixelsInRegion(minXNum, minYNum, maxXNum, maxYNum);
+    // Get pixels in the specified region (prefer cache)
+    const repo = getPixelRepository();
+    const cached = repo.getPixelsInRegion(minXNum, minYNum, maxXNum, maxYNum);
+    const pixels = cached.length
+      ? cached
+      : await (Pixel as any).getPixelsInRegion(minXNum, minYNum, maxXNum, maxYNum);
     
     console.log(`✅ Retrieved ${pixels.length} pixels from region`);
     

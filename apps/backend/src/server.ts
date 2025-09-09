@@ -2,6 +2,7 @@ import http from 'http';
 import app from './app';
 import config from './config';
 import { connectToDatabase } from './services/database.service';
+import { initializePixelRepository } from './services/pixelRepository';
 import { initializeWebSocketServer } from './ws/WebSocketService';
 import { initializeSentry } from './config/sentry';
 
@@ -15,6 +16,9 @@ async function startServer() {
     // Connect to database
     await connectToDatabase();
     console.log('✅ Database connected successfully');
+    // Initialize pixel repository + in-memory cache (with periodic reload)
+    initializePixelRepository();
+    console.log('✅ Pixel repository + cache initialized');
     
     // Create HTTP server
     const server = http.createServer(app);

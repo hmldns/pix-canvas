@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { Pixel } from '../models/pixel.model';
+import { getPixelRepository } from '../services/pixelRepository';
 import { User } from '../models/user.model';
 import { isValidCanvasCoordinate, isValidHexColor } from '@libs/utils';
 import { 
@@ -175,25 +176,18 @@ export class WebSocketService {
         { clientId, x, y, color }
       );
 
-      // Create and save pixel to database
-      const pixel = new Pixel({
+      // Persist to database and mirror to memory cache
+      const timestamp = new Date();
+      await getPixelRepository().recordPixel(x, y, color, userId, timestamp);
+      console.log(`✅ Pixel saved to DB and cache: (${x},${y}) ${color} by ${userId}`);
+
+      // Queue pixel update for batched broadcasting
+      this.broadcastService.queuePixelUpdate({
         x,
         y,
         color,
         userId,
-        timestamp: new Date(),
-      });
-
-      await pixel.save();
-      console.log(`✅ Pixel saved to database: (${x},${y}) ${color} by ${userId}`);
-
-      // Queue pixel update for batched broadcasting
-      this.broadcastService.queuePixelUpdate({
-        x: pixel.x,
-        y: pixel.y,
-        color: pixel.color,
-        userId: pixel.userId,
-        timestamp: pixel.timestamp,
+        timestamp,
       });
 
     } catch (error) {
